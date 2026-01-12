@@ -2,8 +2,25 @@ import { useState, useEffect, useCallback } from 'react';
 import type { FC, SetStateAction, Dispatch } from 'react';
 import { Heart, Palette, DollarSign, Building2, User, Users, Flag, Book, Sun, Moon } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
-import { verses } from '../data/verses';
+import { versesCache } from '../data/verses';
 import type { Religion } from '../data/verses';
+
+// AI verse fetching function
+async function getAiVerse(religion: string, category: string): Promise<string> {
+    try {
+        const response = await fetch('/.netlify/functions/get-verse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ religion, category })
+        });
+
+        const data = await response.json();
+        return data.verse || "Stay strong and keep moving forward.";
+    } catch (error) {
+        console.error("AI fetch failed:", error);
+        return "Stay strong and keep moving forward.";
+    }
+}
 
 interface Category {
     id: string;
@@ -59,6 +76,47 @@ const CategoryCard: FC<CategoryCardProps> = ({
     isDarkMode,
 }) => {
     const Icon = category.icon;
+    const [currentVerse, setCurrentVerse] = useState<string>("Loading...");
+    const [isLoadingVerse, setIsLoadingVerse] = useState(false);
+
+    // Fetch verse when religion or category changes
+    useEffect(() => {
+        if (!religion) {
+            setCurrentVerse("Loading...");
+            return;
+        }
+
+        const fetchVerse = async () => {
+            setIsLoadingVerse(true);
+            try {
+                // Check cache first
+                if (versesCache[religion] && versesCache[religion][category.id]) {
+                    const verseList = versesCache[religion][category.id];
+                    const index = verseIndices[category.id] % verseList.length;
+                    setCurrentVerse(verseList[index] || "Stay strong and keep moving forward.");
+                } else {
+                    // Fetch from AI
+                    const verse = await getAiVerse(religion, category.id);
+                    // Cache the verse
+                    if (!versesCache[religion]) {
+                        versesCache[religion] = {};
+                    }
+                    if (!versesCache[religion][category.id]) {
+                        versesCache[religion][category.id] = [];
+                    }
+                    versesCache[religion][category.id].push(verse);
+                    setCurrentVerse(verse);
+                }
+            } catch (error) {
+                console.error("Error fetching verse:", error);
+                setCurrentVerse("Stay strong and keep moving forward.");
+            } finally {
+                setIsLoadingVerse(false);
+            }
+        };
+
+        fetchVerse();
+    }, [religion, category.id, verseIndices[category.id]]);
 
     const renderTextarea = (field: string, placeholder: string, rows: number = 2) => (
         <textarea
@@ -122,7 +180,7 @@ const CategoryCard: FC<CategoryCardProps> = ({
                 className="border-l-4 p-3 rounded-lg mb-4 text-xs italic cursor-pointer transition hover:opacity-80"
                 onClick={() => cycleVerse(category.id)}
             >
-                {religion ? verses[religion][category.id][verseIndices[category.id]] : "Loading..."}
+                {isLoadingVerse ? "Loading verse..." : currentVerse}
             </div>
 
             <div className="space-y-3 grow">
@@ -339,9 +397,11 @@ export default function BiblicalLifeDashboard() {
 
     const cycleVerse = useCallback((categoryId: string) => {
         if (!religion) return;
+        // Get the number of cached verses for this category, default to 1 to avoid infinite loops
+        const verseCount = (versesCache[religion] && versesCache[religion][categoryId]?.length) || 1;
         setVerseIndices(prev => ({
             ...prev,
-            [categoryId]: (prev[categoryId] + 1) % verses[religion][categoryId].length
+            [categoryId]: (prev[categoryId] + 1) % verseCount
         }));
     }, [religion]);
 
@@ -456,6 +516,8 @@ export default function BiblicalLifeDashboard() {
         );
     };
 
+    const [customReligion, setCustomReligion] = useState('');
+
     const ReligionPopup = () => (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div style={{
@@ -465,7 +527,7 @@ export default function BiblicalLifeDashboard() {
             }} className="max-w-md w-full text-center p-8 shadow-2xl">
                 <h2 style={{ color: isDarkMode ? '#ffffff' : '#111827' }} className="text-3xl font-bold mb-3">Choose Your Path</h2>
                 <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="mb-8">Please select a religious focus to personalize your verses and experience.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <button onClick={() => handleReligionSelect('christianity')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Christianity</button>
                     <button onClick={() => handleReligionSelect('islam')} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Islam</button>
                     <button onClick={() => handleReligionSelect('judaism')} className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Judaism</button>
@@ -475,6 +537,30 @@ export default function BiblicalLifeDashboard() {
                     <button onClick={() => handleReligionSelect('bahaif')} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Baha'i Faith</button>
                     <button onClick={() => handleReligionSelect('taoism')} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Taoism</button>
                     <button onClick={() => handleReligionSelect('shinto')} className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Shinto</button>
+                </div>
+                <div className="border-t pt-6" style={{ borderColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+                    <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="text-sm mb-3">Or specify your own spiritual tradition:</p>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={customReligion}
+                            onChange={(e) => setCustomReligion(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && customReligion.trim() && handleReligionSelect(customReligion)}
+                            placeholder="e.g., Zoroastrianism, Wicca..."
+                            style={{
+                                backgroundColor: isDarkMode ? '#374151' : '#f9fafb',
+                                borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
+                                color: isDarkMode ? '#f3f4f6' : '#111827'
+                            }}
+                            className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                            onClick={() => customReligion.trim() && handleReligionSelect(customReligion)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition"
+                        >
+                            Add
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
