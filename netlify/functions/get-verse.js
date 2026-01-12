@@ -9,14 +9,14 @@ const verseWithReference = z.object({
 });
 
 const verseSchema = z.object({
-    spiritual: z.array(verseWithReference).length(10).describe("10 spiritual verses with references"),
-    physical: z.array(verseWithReference).length(10).describe("10 physical health verses with references"),
-    family: z.array(verseWithReference).length(10).describe("10 family relationship verses with references"),
-    oneonone: z.array(verseWithReference).length(10).describe("10 one-on-one relationship verses with references"),
-    assets: z.array(verseWithReference).length(10).describe("10 asset/wealth verses with references"),
-    income: z.array(verseWithReference).length(10).describe("10 income/financial verses with references"),
-    hobby: z.array(verseWithReference).length(10).describe("10 hobby/creativity verses with references"),
-    politics: z.array(verseWithReference).length(10).describe("10 civic/political verses with references"),
+    spiritual: z.array(verseWithReference).length(5).describe("5 spiritual verses with references"),
+    physical: z.array(verseWithReference).length(5).describe("5 physical health verses with references"),
+    family: z.array(verseWithReference).length(5).describe("5 family relationship verses with references"),
+    oneonone: z.array(verseWithReference).length(5).describe("5 one-on-one relationship verses with references"),
+    assets: z.array(verseWithReference).length(5).describe("5 asset/wealth verses with references"),
+    income: z.array(verseWithReference).length(5).describe("5 income/financial verses with references"),
+    hobby: z.array(verseWithReference).length(5).describe("5 hobby/creativity verses with references"),
+    politics: z.array(verseWithReference).length(5).describe("5 civic/political verses with references"),
 });
 
 export const handler = async (event) => {
@@ -48,14 +48,14 @@ export const handler = async (event) => {
 
         let prompt;
         if (religion.toLowerCase() === 'atheism') {
-            prompt = `Provide 10 science-based facts, humanistic insights, or philosophical wisdom for each category. 
+            prompt = `Provide 5 science-based facts, humanistic insights, or philosophical wisdom for each category. 
 For EACH item, provide both:
 1. "text": The insight or fact
 2. "reference": The source, study, author, or context (e.g., "Psychology Today", "Carl Sagan", "MIT Study on Happiness", etc)
 
 Categories: spiritual, physical, family, oneonone, assets, income, hobby, politics.`;
         } else {
-            prompt = `Provide 10 inspirational verses or wisdom quotes from ${religion} tradition for each category.
+            prompt = `Provide 5 inspirational verses or wisdom quotes from ${religion} tradition for each category.
 For EACH item, provide both:
 1. "text": The verse or quote
 2. "reference": The source with book/chapter/verse (e.g., "Quran 2:255", "Bhagavad Gita 2.47", "Talmud Pirkei Avot 1:14", etc)
