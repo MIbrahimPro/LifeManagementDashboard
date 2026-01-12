@@ -20,8 +20,7 @@ exports.handler = async (event) => {
         // Use the API Key you stored in Netlify's Environment Variables
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
-            // This 'systemInstruction' tells the AI how to behave
+            model: "gemini-2.5-flash",
             systemInstruction: "You are a helpful assistant that provides short, inspirational verses. Only provide the verse and the reference. Do not add chatty text. The format you use is '<Verse>' Book Chapter:Verse"
         });
 
