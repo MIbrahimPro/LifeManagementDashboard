@@ -47,26 +47,19 @@ export const handler = async (event) => {
         let userPrompt = "";
 
         if (religion.toLowerCase() === 'atheism') {
-            userPrompt = `Provide 2 science-based facts or humanistic philosophical insights for each category:
-- spiritual: Meaning, purpose, philosophy of life
-- physical: Health, fitness, nutrition, wellness
-- family: Family bonds, parenting, relationships with relatives
-- oneonone: Personal relationships, friendships, love
-- assets: Wealth, money, financial assets, property
-- income: Work, career, earning money, employment
-- hobby: Creativity, hobbies, leisure, talents
-- politics: Civic duty, community service, justice, governance
+            userPrompt = `Generate JSON with 2 science-based insights per category. 
+Keep text concise (under 150 characters).
+Keep reference simple (just name/source, no special characters).
 
-Return ONLY valid JSON with this exact structure, no other text:
 {
-  "spiritual": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
-  "physical": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
-  "family": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
-  "oneonone": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
-  "assets": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
-  "income": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
-  "hobby": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
-  "politics": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}]
+  "spiritual": [{"text": "insight about meaning", "reference": "Author or Source"}, {"text": "insight about purpose", "reference": "Author or Source"}],
+  "physical": [{"text": "health fact", "reference": "Source"}, {"text": "wellness fact", "reference": "Source"}],
+  "family": [{"text": "relationship insight", "reference": "Source"}, {"text": "parenting insight", "reference": "Source"}],
+  "oneonone": [{"text": "friendship insight", "reference": "Source"}, {"text": "communication fact", "reference": "Source"}],
+  "assets": [{"text": "financial fact", "reference": "Source"}, {"text": "wealth insight", "reference": "Source"}],
+  "income": [{"text": "career fact", "reference": "Source"}, {"text": "work insight", "reference": "Source"}],
+  "hobby": [{"text": "creativity fact", "reference": "Source"}, {"text": "leisure benefit", "reference": "Source"}],
+  "politics": [{"text": "civic insight", "reference": "Source"}, {"text": "community fact", "reference": "Source"}]
 }`;
         } else {
             userPrompt = `Provide 2 inspirational verses or wisdom quotes from the ${religion} tradition for each category:
