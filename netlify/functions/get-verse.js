@@ -4,14 +4,14 @@ import Groq from "groq-sdk";
 import { z } from "zod";
 
 const categoriesSchema = z.object({
-    spiritual: z.array(z.object({ text: z.string(), reference: z.string() })).length(2),
-    physical: z.array(z.object({ text: z.string(), reference: z.string() })).length(2),
-    family: z.array(z.object({ text: z.string(), reference: z.string() })).length(2),
-    oneonone: z.array(z.object({ text: z.string(), reference: z.string() })).length(2),
-    assets: z.array(z.object({ text: z.string(), reference: z.string() })).length(2),
-    income: z.array(z.object({ text: z.string(), reference: z.string() })).length(2),
-    hobby: z.array(z.object({ text: z.string(), reference: z.string() })).length(2),
-    politics: z.array(z.object({ text: z.string(), reference: z.string() })).length(2),
+    spiritual: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
+    physical: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
+    family: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
+    oneonone: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
+    assets: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
+    income: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
+    hobby: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
+    politics: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
 });
 
 export const handler = async (event) => {
