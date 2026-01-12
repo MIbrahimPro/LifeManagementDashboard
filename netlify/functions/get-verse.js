@@ -47,7 +47,17 @@ export const handler = async (event) => {
         let userPrompt = "";
 
         if (religion.toLowerCase() === 'atheism') {
-            userPrompt = `Provide 2 science-based facts or humanistic philosophical insights for each category. Return as JSON with this exact structure:
+            userPrompt = `Provide 2 science-based facts or humanistic philosophical insights for each category:
+- spiritual: Meaning, purpose, philosophy of life
+- physical: Health, fitness, nutrition, wellness
+- family: Family bonds, parenting, relationships with relatives
+- oneonone: Personal relationships, friendships, love
+- assets: Wealth, money, financial assets, property
+- income: Work, career, earning money, employment
+- hobby: Creativity, hobbies, leisure, talents
+- politics: Civic duty, community service, justice, governance
+
+Return ONLY valid JSON with this exact structure, no other text:
 {
   "spiritual": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
   "physical": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
@@ -59,7 +69,17 @@ export const handler = async (event) => {
   "politics": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}]
 }`;
         } else {
-            userPrompt = `Provide 2 inspirational verses or wisdom quotes from the ${religion} tradition. Return as JSON with this exact structure:
+            userPrompt = `Provide 2 inspirational verses or wisdom quotes from the ${religion} tradition for each category:
+- spiritual: Faith, prayer, spiritual growth, meaning, connection to divine
+- physical: Health, body, strength, healing, wellness
+- family: Family bonds, parents, children, relatives, love for kin
+- oneonone: Friendship, personal love, relationships, compassion to others
+- assets: Wealth, possessions, stewardship, financial responsibility
+- income: Work, labor, earning money, career, professional success
+- hobby: Joy, creativity, talents, leisure, artistic expression
+- politics: Justice, service, governance, community good, civic duty
+
+Return ONLY valid JSON with this exact structure, no other text:
 {
   "spiritual": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
   "physical": [{"text": "...", "reference": "..."}, {"text": "...", "reference": "..."}],
