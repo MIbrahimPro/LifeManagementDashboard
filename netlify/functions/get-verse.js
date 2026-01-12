@@ -1,8 +1,25 @@
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { z } from "zod";
+import { zodToJsonSchema } from "zod-to-json-schema";
 
-const CATEGORIES = ['spiritual', 'physical', 'family', 'oneonone', 'assets', 'income', 'hobby', 'politics'];
+// Schema for a single verse with reference
+const verseWithReference = z.object({
+    text: z.string().describe("The verse or wisdom text"),
+    reference: z.string().describe("The source or reference for the verse (book, chapter, verse, author, etc)")
+});
 
-exports.handler = async (event) => {
+const verseSchema = z.object({
+    spiritual: z.array(verseWithReference).length(15).describe("15 spiritual verses with references"),
+    physical: z.array(verseWithReference).length(15).describe("15 physical health verses with references"),
+    family: z.array(verseWithReference).length(15).describe("15 family relationship verses with references"),
+    oneonone: z.array(verseWithReference).length(15).describe("15 one-on-one relationship verses with references"),
+    assets: z.array(verseWithReference).length(15).describe("15 asset/wealth verses with references"),
+    income: z.array(verseWithReference).length(15).describe("15 income/financial verses with references"),
+    hobby: z.array(verseWithReference).length(15).describe("15 hobby/creativity verses with references"),
+    politics: z.array(verseWithReference).length(15).describe("15 civic/political verses with references"),
+});
+
+export const handler = async (event) => {
     // Only allow POST requests
     if (event.httpMethod !== "POST") {
         return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
@@ -10,85 +27,58 @@ exports.handler = async (event) => {
 
     try {
         const { religion } = JSON.parse(event.body);
+        const apiKey = process.env.GEMINI_API_KEY;
 
-        console.log(`Fetching verses for ${religion}`);
-        console.log(`API Key exists: ${!!process.env.GEMINI_API_KEY}`);
-
-        if (!process.env.GEMINI_API_KEY) {
-            console.error("GEMINI_API_KEY environment variable not set");
+        if (!apiKey) {
             return { statusCode: 500, body: JSON.stringify({ error: "API key not configured" }) };
         }
 
-        // Use the API Key you stored in Netlify's Environment Variables
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash"
+            model: "gemini-2.5-flash",
+            generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: (() => {
+                    const schema = zodToJsonSchema(verseSchema);
+                    delete schema.$schema;
+                    return schema;
+                })(),
+            },
         });
 
         let prompt;
-
-        // Special handling for Atheism/Secular worldview
         if (religion.toLowerCase() === 'atheism') {
-            prompt = `For a secular/atheist worldview, provide 5 science-based facts, philosophical insights, or wisdom quotes for each of these life categories. These should be grounded in evidence, reason, and humanistic values. Format your response as JSON with this exact structure:
-{
-  "spiritual": ["science/philosophy fact with source or reference", "insight with context", ...],
-  "physical": ["science fact about health", "evidence-based insight", ...],
-  "family": ["psychology/relationship science fact", ...],
-  "oneonone": ["interpersonal science or wisdom", ...],
-  "assets": ["economics or financial wisdom", ...],
-  "income": ["career/financial science fact", ...],
-  "hobby": ["psychology of creativity/flow", ...],
-  "politics": ["civics/political science fact", ...]
-}
+            prompt = `Provide 15 science-based facts, humanistic insights, or philosophical wisdom for each category. 
+For EACH item, provide both:
+1. "text": The insight or fact
+2. "reference": The source, study, author, or context (e.g., "Psychology Today", "Carl Sagan", "MIT Study on Happiness", etc)
 
-Focus on:
-- Scientific research findings
-- Evidence-based wisdom
-- Humanistic philosophy
-- Logical reasoning
-- Psychological insights
-
-Only respond with valid JSON, no other text.`;
+Categories: spiritual, physical, family, oneonone, assets, income, hobby, politics.`;
         } else {
-            // Standard religious/spiritual prompt
-            prompt = `For the ${religion} religion/spiritual tradition, provide 5 short inspirational verses, sayings, or wisdom quotes for each of these life categories. Format your response as JSON with this exact structure:
-{
-  "spiritual": ["verse1 with reference", "verse2 with reference", "verse3 with reference", "verse4 with reference", "verse5 with reference"],
-  "physical": ["verse1 with reference", ...],
-  "family": ["verse1 with reference", ...],
-  "oneonone": ["verse1 with reference", ...],
-  "assets": ["verse1 with reference", ...],
-  "income": ["verse1 with reference", ...],
-  "hobby": ["verse1 with reference", ...],
-  "politics": ["verse1 with reference", ...]
-}
+            prompt = `Provide 15 inspirational verses or wisdom quotes from ${religion} tradition for each category.
+For EACH item, provide both:
+1. "text": The verse or quote
+2. "reference": The source with book/chapter/verse (e.g., "Quran 2:255", "Bhagavad Gita 2.47", "Talmud Pirkei Avot 1:14", etc)
 
-Categories: ${CATEGORIES.join(", ")}
-
-Only respond with valid JSON, no other text.`;
+Categories: spiritual, physical, family, oneonone, assets, income, hobby, politics.`;
         }
 
         const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
 
-        // Parse the JSON response
-        let versesData;
-        try {
-            versesData = JSON.parse(text);
-        } catch (parseError) {
-            console.error("Failed to parse JSON response:", text);
-            return { statusCode: 500, body: JSON.stringify({ error: "Invalid response format from AI" }) };
-        }
-
-        console.log("Verses fetched successfully");
+        // Parse and Validate
+        const rawJson = JSON.parse(result.response.text());
+        const validatedData = verseSchema.parse(rawJson);
 
         return {
             statusCode: 200,
-            body: JSON.stringify({ verses: versesData }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ verses: validatedData }),
         };
     } catch (error) {
-        console.error("Error in get-verse function:", error.message);
-        return { statusCode: 500, body: JSON.stringify({ error: error.message || "Failed to fetch verses" }) };
+        console.error("Function Error:", error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: error.message || "Failed to process request" })
+        };
     }
 };

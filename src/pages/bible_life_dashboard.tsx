@@ -5,9 +5,57 @@ import type { LucideProps } from 'lucide-react';
 import { versesCache } from '../data/verses';
 import type { Religion } from '../data/verses';
 
+// Type for verse with reference
+interface VerseData {
+    text: string;
+    reference: string;
+}
+
+// Cache key generator
+const getCacheKey = (religion: string) => `verses_${religion}`;
+const getCacheTimeKey = (religion: string) => `verses_time_${religion}`;
+
+// Check if cache is still valid (less than 1 hour old)
+const isCacheValid = (religion: string): boolean => {
+    const timeKey = getCacheTimeKey(religion);
+    const cachedTime = localStorage.getItem(timeKey);
+    if (!cachedTime) return false;
+
+    const timestamp = parseInt(cachedTime, 10);
+    const now = Date.now();
+    const oneHourInMs = 60 * 60 * 1000;
+
+    return (now - timestamp) < oneHourInMs;
+};
+
+// Format verses from API response (convert to display format)
+const formatVerses = (apiVerses: Record<string, VerseData[]>): Record<string, string[]> => {
+    const formatted: Record<string, string[]> = {};
+
+    Object.keys(apiVerses).forEach(category => {
+        formatted[category] = apiVerses[category].map(v => `${v.text}\n— ${v.reference}`);
+    });
+
+    return formatted;
+};
+
 // AI verse fetching function - now gets all verses for a religion at once
 async function getAiVerses(religion: string): Promise<Record<string, string[]>> {
     try {
+        const cacheKey = getCacheKey(religion);
+        const cacheTimeKey = getCacheTimeKey(religion);
+
+        // Check if we have valid cached data
+        if (isCacheValid(religion)) {
+            console.log(`Using cached verses for ${religion}`);
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                return JSON.parse(cached);
+            }
+        }
+
+        // Fetch fresh verses from API
+        console.log(`Fetching fresh verses for ${religion}`);
         const response = await fetch('/.netlify/functions/get-verse', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -21,9 +69,25 @@ async function getAiVerses(religion: string): Promise<Record<string, string[]>> 
             return {};
         }
 
-        return data.verses || {};
+        const apiVerses = data.verses || {};
+        const formattedVerses = formatVerses(apiVerses);
+
+        // Store formatted verses and timestamp in localStorage
+        localStorage.setItem(cacheKey, JSON.stringify(formattedVerses));
+        localStorage.setItem(cacheTimeKey, Date.now().toString());
+
+        return formattedVerses;
     } catch (error) {
         console.error("AI fetch failed:", error);
+
+        // Try to return cached data even if expired, as fallback
+        const cacheKey = getCacheKey(religion);
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            console.log(`Using expired cache as fallback for ${religion}`);
+            return JSON.parse(cached);
+        }
+
         return {};
     }
 }
@@ -336,6 +400,14 @@ export default function BiblicalLifeDashboard() {
         const storedReligion = localStorage.getItem('userReligion') as Religion | null;
         if (storedReligion) {
             setReligion(storedReligion);
+            // Fetch verses when page loads with stored religion (checks cache first)
+            (async () => {
+                const allVerses = await getAiVerses(storedReligion);
+                if (Object.keys(allVerses).length > 0) {
+                    versesCache[storedReligion] = allVerses;
+                    console.log(`Loaded verses for ${storedReligion}:`, allVerses);
+                }
+            })();
         } else {
             setShowReligionPopup(true);
         }
