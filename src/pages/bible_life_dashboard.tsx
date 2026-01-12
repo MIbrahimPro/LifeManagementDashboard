@@ -469,6 +469,12 @@ export default function BiblicalLifeDashboard() {
                     <button onClick={() => handleReligionSelect('christianity')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Christianity</button>
                     <button onClick={() => handleReligionSelect('islam')} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Islam</button>
                     <button onClick={() => handleReligionSelect('judaism')} className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Judaism</button>
+                    <button onClick={() => handleReligionSelect('buddhism')} className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Buddhism</button>
+                    <button onClick={() => handleReligionSelect('hinduism')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Hinduism</button>
+                    <button onClick={() => handleReligionSelect('sikhism')} className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Sikhism</button>
+                    <button onClick={() => handleReligionSelect('bahaif')} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Baha'i Faith</button>
+                    <button onClick={() => handleReligionSelect('taoism')} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Taoism</button>
+                    <button onClick={() => handleReligionSelect('shinto')} className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Shinto</button>
                 </div>
             </div>
         </div>

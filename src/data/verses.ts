@@ -1,4 +1,4 @@
-export type Religion = 'christianity' | 'islam' | 'judaism' | 'buddhism' | 'hinduism' | 'sikhism';
+export type Religion = 'christianity' | 'islam' | 'judaism' | 'buddhism' | 'hinduism' | 'sikhism' | 'bahaif' | 'taoism' | 'shinto';
 
 export const verses: Record<Religion, Record<string, string[]>> = {
     "christianity": {
@@ -579,6 +579,180 @@ export const verses: Record<Religion, Record<string, string[]>> = {
             "Let your mind and heart vibrate with His remembrance. - GGS 1347",
             "The Lord is One. His Name is Truth. - Guru Nanak (Mul Mantar)",
             "In remembrance, all fears dissolve. - GGS 816"
+        ]
+    },
+    "bahaif": {
+        "physical": [
+            "The human body is a temple; sanctify it. - Baháʼí Writings",
+            "Be temperate in all things. - Baháʼí Writings",
+            "Cleanliness and purity are of fundamental importance. - Baháʼí Writings",
+            "Physical health is closely linked to spiritual health. - Baháʼí Writings",
+            "Eat and drink of all things wholesome and pure. - Baháʼí Writings"
+        ],
+        "hobby": [
+            "Work in the spirit of service is worship. - Baháʼí Writings",
+            "Art and crafts are a form of worship. - Baháʼí Writings",
+            "Engage in occupations that benefit humanity. - Baháʼí Writings",
+            "Develop your talents for the good of all. - Baháʼí Writings",
+            "Music is the ladder of the soul. - Baháʼí Writings"
+        ],
+        "income": [
+            "Wealth should be used for the upliftment of humanity. - Baháʼí Writings",
+            "Earn your livelihood with trustworthiness and integrity. - Baháʼí Writings",
+            "Share your wealth with the poor and needy. - Baháʼí Writings",
+            "Justice in economics is a pillar of society. - Baháʼí Writings",
+            "Work is worship if performed in the spirit of service. - Baháʼí Writings"
+        ],
+        "assets": [
+            "Possessions are means, not ends. - Baháʼí Writings",
+            "Be content with what God has bestowed upon you. - Baháʼí Writings",
+            "Renounce covetousness, for it leads to regret. - Baháʼí Writings",
+            "The earth is but one country, and mankind its citizens. - Baháʼí Writings",
+            "True richness lies in independence from all save God. - Baháʼí Writings"
+        ],
+        "oneonone": [
+            "Be a helper to every helpless one. - Baháʼí Writings",
+            "Consort with all religions with amity and accord. - Baháʼí Writings",
+            "Let your heart be pure, your hands unstained, your mind keen. - Baháʼí Writings",
+            "The best beloved of all things in My sight is Justice. - Baháʼu'lláh",
+            "Love ye all men, and love ye all creatures. - Baháʼí Writings"
+        ],
+        "family": [
+            "The family is a divine institution. - Baháʼí Writings",
+            "Parents are the first educators of their children. - Baháʼí Writings",
+            "The equal station of men and women is affirmed. - Baháʼí Writings",
+            "Children are gifts from God; educate them well. - Baháʼí Writings",
+            "Unity in the family creates unity in the world. - Baháʼí Writings"
+        ],
+        "politics": [
+            "The world is one country. - Baháʼí Writings",
+            "Justice is the foundation of lasting peace. - Baháʼí Writings",
+            "Consultation is the bedrock of good governance. - Baháʼí Writings",
+            "Prejudice, whether racial, religious, or national, must be abandoned. - Baháʼí Writings",
+            "The spiritual solution to economic problems is justice. - Baháʼí Writings"
+        ],
+        "spiritual": [
+            "The purpose of life is to know God and to worship Him. - Baháʼí Writings",
+            "Prayer and meditation are essential for spiritual growth. - Baháʼí Writings",
+            "Search after truth. - Baháʼí Writings",
+            "Live a life of selfless service. - Baháʼí Writings",
+            "The tabernacle of unity hath been raised. - Baháʼu'lláh"
+        ]
+    },
+    "taoism": {
+        "physical": [
+            "When the body is relaxed, the Chi flows freely. - Taoist principle",
+            "Nature does not hurry, yet everything is accomplished. - Lao Tzu",
+            "The soft overcomes the hard; the weak overcomes the strong. - Tao Te Ching",
+            "Practice moderation in all things. - Taoist teaching",
+            "Align your actions with the rhythm of the universe. - Chuang Tzu"
+        ],
+        "hobby": [
+            "Doing nothing is better than being busy doing nothing. - Lao Tzu",
+            "To a mind that is still, the whole universe surrenders. - Lao Tzu",
+            "The journey of a thousand miles begins with a single step. - Lao Tzu",
+            "Find joy in the simple, everyday acts. - Taoist wisdom",
+            "Flow with what is happening, and your heart will be free. - Chuang Tzu"
+        ],
+        "income": [
+            "The greatest wealth is contentment. - Lao Tzu",
+            "When you are content to be simply yourself and don't compare and compete, everybody will respect you. - Lao Tzu",
+            "Governing a large country is like cooking a small fish. - Lao Tzu",
+            "Possessions are burdens; virtue is true treasure. - Taoist teaching",
+            "The sage accumulates nothing. The more he gives to others, the more he has. - Tao Te Ching"
+        ],
+        "assets": [
+            "Empty your mind of all thoughts. Let your heart be at peace. - Lao Tzu",
+            "He who knows he has enough is rich. - Lao Tzu",
+            "The most valuable things are intangible. - Chuang Tzu",
+            "Live simply, so that others may simply live. - Taoist Proverb",
+            "True power is found in giving away, not holding onto. - Tao Te Ching"
+        ],
+        "oneonone": [
+            "Kindness in words creates confidence. Kindness in thinking creates profoundness. Kindness in giving creates love. - Lao Tzu",
+            "The best fighter is never angry. - Lao Tzu",
+            "To know how to yield is to be strong. - Tao Te Ching",
+            "Be like water, which flows around obstacles. - Lao Tzu",
+            "Respond to hatred with gentleness. - Taoist teaching"
+        ],
+        "family": [
+            "Governing a family is like governing a kingdom. - Lao Tzu",
+            "Love and respect begin at home. - Taoist wisdom",
+            "A family that practices virtue together will prosper. - Tao Te Ching",
+            "The superior man is modest in his speech, but exceeds in his actions. - Lao Tzu",
+            "Treat your parents with respect and care, for they are your roots. - Taoist teaching"
+        ],
+        "politics": [
+            "Govern a country as you would fry a small fish. - Lao Tzu",
+            "The best rulers are those the people barely know exist. - Lao Tzu",
+            "When there is no desire, all things are at peace. - Lao Tzu",
+            "The more laws and edicts, the more thieves and robbers. - Lao Tzu",
+            "A leader's true strength lies in humility and service. - Tao Te Ching"
+        ],
+        "spiritual": [
+            "The Tao that can be told is not the eternal Tao. - Lao Tzu",
+            "Empty your mind, be formless, shapeless — like water. - Bruce Lee (inspired by Taoism)",
+            "Journey to the center of your being; that is where the Tao resides. - Taoist Meditation",
+            "Simplicity, patience, compassion. These three are your greatest treasures. - Lao Tzu",
+            "All things arise from Tao, are nurtured by Te. - Tao Te Ching"
+        ]
+    },
+    "shinto": {
+        "physical": [
+            "Cleanliness purifies the body and spirit. - Shinto teaching",
+            "Live in harmony with nature. - Shinto principle",
+            "The body is a vessel for the Kami; keep it pure. - Shinto belief",
+            "Practice daily purification (misogi) for renewal. - Shinto ritual",
+            "Respect the life force within all beings. - Shinto teaching"
+        ],
+        "hobby": [
+            "Every action is an offering to the Kami. - Shinto perspective",
+            "Find joy and reverence in creation and craftsmanship. - Shinto tradition",
+            "Celebrate the beauty and wonder of nature. - Shinto appreciation",
+            "Cultivate sincerity and purity of heart in all endeavors. - Shinto virtue",
+            "Participate in festivals (matsuri) to honor the Kami and community. - Shinto practice"
+        ],
+        "income": [
+            "Prosperity comes from sincerity and hard work. - Shinto teaching",
+            "Share blessings with the community and the Kami. - Shinto offering",
+            "Conduct business with integrity and respect for others. - Shinto ethics",
+            "Abundance is a gift from the Kami; use it wisely. - Shinto belief",
+            "Work diligently, for it contributes to the harmony of the world. - Shinto principle"
+        ],
+        "assets": [
+            "Possessions are temporary; the spirit is eternal. - Shinto view",
+            "Cherish and care for what you have, as it is a gift. - Shinto gratitude",
+            "Offer the first fruits of your labor to the Kami. - Shinto ritual",
+            "Do not cling to material things; find joy in simple living. - Shinto wisdom",
+            "Respect all objects, for they can be imbued with spirit. - Animistic belief"
+        ],
+        "oneonone": [
+            "Treat others with sincerity and respect. - Shinto teaching",
+            "Live in harmony with family, friends, and community. - Shinto principle",
+            "Forgiveness and reconciliation are key to good relations. - Shinto ethics",
+            "Purity of heart guides interactions with others. - Shinto virtue",
+            "The ties that bind us are sacred. - Shinto belief"
+        ],
+        "family": [
+            "Honor your ancestors; they are ever-present. - Shinto ancestor worship",
+            "The family is the foundation of society. - Shinto teaching",
+            "Raise children with purity and sincerity of heart. - Shinto upbringing",
+            "Celebrate life's milestones with gratitude to the Kami. - Shinto ritual",
+            "Maintain harmony and respect within the household. - Shinto principle"
+        ],
+        "politics": [
+            "Good governance brings peace and prosperity. - Shinto ideal",
+            "Leaders should act with sincerity and for the welfare of all. - Shinto ethics",
+            "The Emperor is a symbol of the nation's unity and connection to the Kami. - Traditional Shinto",
+            "Maintain harmony (wa) in society. - Shinto concept",
+            "National well-being is connected to spiritual purity. - Shinto belief"
+        ],
+        "spiritual": [
+            "Revere the Kami (deities/spirits) in nature and daily life. - Shinto core belief",
+            "Practice purity (harae) of mind, body, and spirit. - Shinto ritual",
+            "Live with sincerity (makoto) and gratitude. - Shinto virtues",
+            "Connect with the divine through nature. - Shinto practice",
+            "The path of the Kami is revealed in harmony and purity. - Shinto teaching"
         ]
     }
 };
