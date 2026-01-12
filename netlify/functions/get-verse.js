@@ -14,7 +14,7 @@ exports.handler = async (event) => {
         const model = genAI.getGenerativeModel({
             model: "gemini-1.5-flash",
             // This 'systemInstruction' tells the AI how to behave
-            systemInstruction: "You are a helpful assistant that provides short, inspirational verses. Only provide the verse and the reference. Do not add chatty text."
+            systemInstruction: "You are a helpful assistant that provides short, inspirational verses. Only provide the verse and the reference. Do not add chatty text. The format you use is '<Verse>' Book Chapter:Verse"
         });
 
         const prompt = `Find a verse from ${religion} holy texts about the topic: ${category}.`;
