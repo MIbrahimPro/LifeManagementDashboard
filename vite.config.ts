@@ -6,17 +6,15 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
     plugins: [
         tailwindcss({
-            config: {
-                content: [
-                    './index.html',
-                    './src/**/*.{js,ts,jsx,tsx}',
-                ],
-                darkMode: '[data-mode="dark"]',
-                theme: {
-                    extend: {},
-                },
-                plugins: [],
-            }
+            content: [
+                './index.html',
+                './src/**/*.{js,ts,jsx,tsx}',
+            ],
+            darkMode: '[data-mode="dark"]',
+            theme: {
+                extend: {},
+            },
+            plugins: [],
         }),
         react()
     ],
