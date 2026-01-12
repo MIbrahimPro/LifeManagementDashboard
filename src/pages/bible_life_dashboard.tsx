@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { FC, SetStateAction, Dispatch } from 'react';
-import { Heart, Palette, DollarSign, Building2, User, Users, Flag, Book, Sun, Moon } from 'lucide-react';
+import { Heart, Palette, DollarSign, Building2, User, Users, Flag, Book, Sun, Moon, Loader } from 'lucide-react';
 import type { LucideProps } from 'lucide-react';
 import { versesCache } from '../data/verses';
 import type { Religion } from '../data/verses';
@@ -375,6 +375,7 @@ export default function BiblicalLifeDashboard() {
     const [showResetReligionPrompt, setShowResetReligionPrompt] = useState(false);
     const [showResetAllFieldsPrompt, setShowResetAllFieldsPrompt] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
+    const [isLoadingVerses, setIsLoadingVerses] = useState(false);
 
     useEffect(() => {
         const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -402,10 +403,15 @@ export default function BiblicalLifeDashboard() {
             setReligion(storedReligion);
             // Fetch verses when page loads with stored religion (checks cache first)
             (async () => {
-                const allVerses = await getAiVerses(storedReligion);
-                if (Object.keys(allVerses).length > 0) {
-                    versesCache[storedReligion] = allVerses;
-                    console.log(`Loaded verses for ${storedReligion}:`, allVerses);
+                setIsLoadingVerses(true);
+                try {
+                    const allVerses = await getAiVerses(storedReligion);
+                    if (Object.keys(allVerses).length > 0) {
+                        versesCache[storedReligion] = allVerses;
+                        console.log(`Loaded verses for ${storedReligion}:`, allVerses);
+                    }
+                } finally {
+                    setIsLoadingVerses(false);
                 }
             })();
         } else {
@@ -431,16 +437,20 @@ export default function BiblicalLifeDashboard() {
         setVerseIndices(newVerseIndices);
 
         // Fetch all verses for this religion (ONE API call for all categories)
-        console.log(`Fetching all verses for ${selectedReligion}`);
-        const allVerses = await getAiVerses(selectedReligion);
+        setIsLoadingVerses(true);
+        try {
+            console.log(`Fetching all verses for ${selectedReligion}`);
+            const allVerses = await getAiVerses(selectedReligion);
 
-        // Cache all verses
-        if (Object.keys(allVerses).length > 0) {
-            versesCache[selectedReligion] = allVerses;
-            console.log(`Cached verses for ${selectedReligion}:`, allVerses);
+            // Cache all verses
+            if (Object.keys(allVerses).length > 0) {
+                versesCache[selectedReligion] = allVerses;
+                console.log(`Cached verses for ${selectedReligion}:`, allVerses);
+            }
+        } finally {
+            setIsLoadingVerses(false);
+            setShowReligionPopup(false);
         }
-
-        setShowReligionPopup(false);
     }, []);
 
     const resetReligion = useCallback(() => {
@@ -599,7 +609,7 @@ export default function BiblicalLifeDashboard() {
                     <button onClick={() => handleReligionSelect('judaism')} className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Judaism</button>
                     <button onClick={() => handleReligionSelect('buddhism')} className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Buddhism</button>
                     <button onClick={() => handleReligionSelect('hinduism')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Hinduism</button>
-                    <button onClick={() => handleReligionSelect('Atheism')} className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Sikhism</button>
+                    <button onClick={() => handleReligionSelect('Atheism')} className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Atheism</button>
                 </div>
                 <div className="border-t pt-6" style={{ borderColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
                     <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="text-sm mb-3">Or specify your own spiritual tradition:</p>
@@ -638,6 +648,17 @@ export default function BiblicalLifeDashboard() {
             backgroundColor: isDarkMode ? '#111827' : '#ffffff',
             color: isDarkMode ? '#f3f4f6' : '#111827'
         }}>
+            {isLoadingVerses && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div style={{
+                        backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                        borderRadius: '1rem'
+                    }} className="p-8 flex flex-col items-center gap-4 shadow-2xl">
+                        <Loader size={40} className="animate-spin text-blue-500" />
+                        <p style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-lg font-semibold">Loading verses...</p>
+                    </div>
+                </div>
+            )}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <header className="mb-10">
                     <div className="flex justify-between items-start mb-6">
