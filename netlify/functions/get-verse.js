@@ -2,25 +2,28 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
-// Schema for a single verse with reference
+// 1. Single Item Schema
 const verseWithReference = z.object({
     text: z.string().describe("The verse or wisdom text"),
-    reference: z.string().describe("The source or reference for the verse (book, chapter, verse, author, etc)")
+    reference: z.string().describe("The source or reference (book, chapter, verse, author)")
 });
 
+// 2. Full Container Schema
+// We wrap everything in an object named 'verses' to match your return structure
 const verseSchema = z.object({
-    spiritual: z.array(verseWithReference).length(2).describe("2 spiritual verses with references"),
-    physical: z.array(verseWithReference).length(2).describe("2 physical health verses with references"),
-    family: z.array(verseWithReference).length(2).describe("2 family relationship verses with references"),
-    oneonone: z.array(verseWithReference).length(2).describe("2 one-on-one relationship verses with references"),
-    assets: z.array(verseWithReference).length(2).describe("2 asset/wealth verses with references"),
-    income: z.array(verseWithReference).length(2).describe("2 income/financial verses with references"),
-    hobby: z.array(verseWithReference).length(2).describe("2 hobby/creativity verses with references"),
-    politics: z.array(verseWithReference).length(2).describe("2 civic/political verses with references"),
+    verses: z.object({
+        spiritual: z.array(verseWithReference).length(2),
+        physical: z.array(verseWithReference).length(2),
+        family: z.array(verseWithReference).length(2),
+        oneonone: z.array(verseWithReference).length(2),
+        assets: z.array(verseWithReference).length(2),
+        income: z.array(verseWithReference).length(2),
+        hobby: z.array(verseWithReference).length(2),
+        politics: z.array(verseWithReference).length(2),
+    })
 });
 
 export const handler = async (event) => {
-    // Only allow POST requests
     if (event.httpMethod !== "POST") {
         return { statusCode: 405, body: JSON.stringify({ error: "Method Not Allowed" }) };
     }
@@ -40,44 +43,34 @@ export const handler = async (event) => {
                 responseMimeType: "application/json",
                 responseSchema: (() => {
                     const schema = zodToJsonSchema(verseSchema);
-                    delete schema.$schema;
+                    delete schema.$schema; // Gemini rejects this key
                     return schema;
                 })(),
             },
         });
 
-        let prompt;
-        if (religion.toLowerCase() === 'atheism') {
-            prompt = `Provide 2 science-based facts, humanistic insights, or philosophical wisdom for each category. 
-For EACH item, provide both:
-1. "text": The insight or fact
-2. "reference": The source, study, author, or context (e.g., "Psychology Today", "Carl Sagan", "MIT Study on Happiness", etc)
-
-Categories: spiritual, physical, family, oneonone, assets, income, hobby, politics.`;
-        } else {
-            prompt = `Provide 2 inspirational verses or wisdom quotes from ${religion} tradition for each category.
-For EACH item, provide both:
-1. "text": The verse or quote
-2. "reference": The source with book/chapter/verse (e.g., "Quran 2:255", "Bhagavad Gita 2.47", "Talmud Pirkei Avot 1:14", etc)
-
-Categories: spiritual, physical, family, oneonone, assets, income, hobby, politics.`;
-        }
+        // 3. Clearer Prompt with explicit instruction for the "verses" key
+        const promptType = religion.toLowerCase() === 'atheism' ? 'science-based facts' : `verses from ${religion}`;
+        const prompt = `Generate a JSON object with a top-level key "verses". 
+Inside "verses", provide 2 ${promptType} for each of these categories: spiritual, physical, family, oneonone, assets, income, hobby, and politics.
+Each item must have a "text" and a "reference" field.`;
 
         const result = await model.generateContent(prompt);
+        const rawResponse = result.response.text();
 
-        // Parse and Validate
-        const rawJson = JSON.parse(result.response.text());
-        const validatedData = verseSchema.parse(rawJson);
+        // 4. Parse and Validate
+        // This will now pass because both expect { "verses": { ... } }
+        const validatedData = verseSchema.parse(JSON.parse(rawResponse));
 
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ verses: validatedData }),
+            body: JSON.stringify(validatedData),
         };
     } catch (error) {
         console.error("Function Error:", error);
         return {
-            statusCode: 200,
+            statusCode: 200, // Returning 200 with error body as per your requirement
             body: JSON.stringify({ error: error.message || "Failed to process request" })
         };
     }
