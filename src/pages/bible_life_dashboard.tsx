@@ -131,6 +131,7 @@ interface CategoryCardProps {
     showResetReligionPrompt: boolean;
     resetReligion: () => void;
     isDarkMode: boolean;
+    versesRefreshKey: number;
 }
 
 
@@ -144,6 +145,7 @@ const CategoryCard: FC<CategoryCardProps> = ({
     addTimestamp,
     setShowConstitution,
     isDarkMode,
+    versesRefreshKey,
 }) => {
     const Icon = category.icon;
     const [currentVerse, setCurrentVerse] = useState<string>("Loading...");
@@ -163,7 +165,7 @@ const CategoryCard: FC<CategoryCardProps> = ({
             // Should not happen if handleReligionSelect loaded all verses
             setCurrentVerse("Verse not available.");
         }
-    }, [religion, category.id, verseIndices[category.id]]);
+    }, [religion, category.id, verseIndices[category.id], versesRefreshKey]);
 
     const renderTextarea = (field: string, placeholder: string, rows: number = 2) => (
         <textarea
@@ -376,6 +378,7 @@ export default function BiblicalLifeDashboard() {
     const [showResetAllFieldsPrompt, setShowResetAllFieldsPrompt] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [isLoadingVerses, setIsLoadingVerses] = useState(false);
+    const [versesRefreshKey, setVersesRefreshKey] = useState(0);
 
     useEffect(() => {
         const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -409,6 +412,7 @@ export default function BiblicalLifeDashboard() {
                     if (Object.keys(allVerses).length > 0) {
                         versesCache[storedReligion] = allVerses;
                         console.log(`Loaded verses for ${storedReligion}:`, allVerses);
+                        setVersesRefreshKey(prev => prev + 1); // Trigger re-render
                     }
                 } finally {
                     setIsLoadingVerses(false);
@@ -446,6 +450,7 @@ export default function BiblicalLifeDashboard() {
             if (Object.keys(allVerses).length > 0) {
                 versesCache[selectedReligion] = allVerses;
                 console.log(`Cached verses for ${selectedReligion}:`, allVerses);
+                setVersesRefreshKey(prev => prev + 1); // Trigger re-render
             }
         } finally {
             setIsLoadingVerses(false);
@@ -620,6 +625,7 @@ export default function BiblicalLifeDashboard() {
                             onChange={(e) => setCustomReligion(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && customReligion.trim() && handleReligionSelect(customReligion)}
                             placeholder="e.g., Zoroastrianism, Wicca..."
+                            autoFocus
                             style={{
                                 backgroundColor: isDarkMode ? '#374151' : '#f9fafb',
                                 borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
@@ -759,6 +765,7 @@ export default function BiblicalLifeDashboard() {
                                 showResetReligionPrompt={showResetReligionPrompt}
                                 resetReligion={resetReligion}
                                 isDarkMode={isDarkMode}
+                                versesRefreshKey={versesRefreshKey}
                             />
                         </div>
                     ))}
