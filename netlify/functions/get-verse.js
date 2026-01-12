@@ -22,13 +22,36 @@ exports.handler = async (event) => {
         // Use the API Key you stored in Netlify's Environment Variables
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-            systemInstruction: "You are a helpful assistant that provides short, inspirational verses."
+            model: "gemini-2.5-flash"
         });
 
-        // Request all verses for all categories in ONE request
-        const categoriesList = CATEGORIES.join(", ");
-        const prompt = `For the ${religion} religion/spiritual tradition, provide 5 short inspirational verses for each of these life categories. Format your response as JSON with this exact structure:
+        let prompt;
+
+        // Special handling for Atheism/Secular worldview
+        if (religion.toLowerCase() === 'atheism') {
+            prompt = `For a secular/atheist worldview, provide 5 science-based facts, philosophical insights, or wisdom quotes for each of these life categories. These should be grounded in evidence, reason, and humanistic values. Format your response as JSON with this exact structure:
+{
+  "spiritual": ["science/philosophy fact with source or reference", "insight with context", ...],
+  "physical": ["science fact about health", "evidence-based insight", ...],
+  "family": ["psychology/relationship science fact", ...],
+  "oneonone": ["interpersonal science or wisdom", ...],
+  "assets": ["economics or financial wisdom", ...],
+  "income": ["career/financial science fact", ...],
+  "hobby": ["psychology of creativity/flow", ...],
+  "politics": ["civics/political science fact", ...]
+}
+
+Focus on:
+- Scientific research findings
+- Evidence-based wisdom
+- Humanistic philosophy
+- Logical reasoning
+- Psychological insights
+
+Only respond with valid JSON, no other text.`;
+        } else {
+            // Standard religious/spiritual prompt
+            prompt = `For the ${religion} religion/spiritual tradition, provide 5 short inspirational verses, sayings, or wisdom quotes for each of these life categories. Format your response as JSON with this exact structure:
 {
   "spiritual": ["verse1 with reference", "verse2 with reference", "verse3 with reference", "verse4 with reference", "verse5 with reference"],
   "physical": ["verse1 with reference", ...],
@@ -40,9 +63,10 @@ exports.handler = async (event) => {
   "politics": ["verse1 with reference", ...]
 }
 
-Categories: ${categoriesList}
+Categories: ${CATEGORIES.join(", ")}
 
 Only respond with valid JSON, no other text.`;
+        }
 
         const result = await model.generateContent(prompt);
         const response = await result.response;

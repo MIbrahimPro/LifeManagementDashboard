@@ -83,7 +83,6 @@ const CategoryCard: FC<CategoryCardProps> = ({
 }) => {
     const Icon = category.icon;
     const [currentVerse, setCurrentVerse] = useState<string>("Loading...");
-    const [isLoadingVerse, setIsLoadingVerse] = useState(false);
 
     // Fetch verse when category index changes (verses are already cached by religion)
     useEffect(() => {
@@ -164,7 +163,7 @@ const CategoryCard: FC<CategoryCardProps> = ({
                 className="border-l-4 p-3 rounded-lg mb-4 text-xs italic cursor-pointer transition hover:opacity-80"
                 onClick={() => cycleVerse(category.id)}
             >
-                {isLoadingVerse ? "Loading verse..." : currentVerse}
+                {currentVerse}
             </div>
 
             <div className="space-y-3 grow">
@@ -528,10 +527,7 @@ export default function BiblicalLifeDashboard() {
                     <button onClick={() => handleReligionSelect('judaism')} className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Judaism</button>
                     <button onClick={() => handleReligionSelect('buddhism')} className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Buddhism</button>
                     <button onClick={() => handleReligionSelect('hinduism')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Hinduism</button>
-                    <button onClick={() => handleReligionSelect('sikhism')} className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Sikhism</button>
-                    <button onClick={() => handleReligionSelect('bahaif')} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Baha'i Faith</button>
-                    <button onClick={() => handleReligionSelect('taoism')} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Taoism</button>
-                    <button onClick={() => handleReligionSelect('shinto')} className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Shinto</button>
+                    <button onClick={() => handleReligionSelect('Atheism')} className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Sikhism</button>
                 </div>
                 <div className="border-t pt-6" style={{ borderColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
                     <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="text-sm mb-3">Or specify your own spiritual tradition:</p>
