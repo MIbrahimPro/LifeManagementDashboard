@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
-import { Heart, Palette, DollarSign, Building2, User, Users, Flag, Book } from 'lucide-react';
+import { useState, useEffect, useCallback, memo, FC, SetStateAction, Dispatch } from 'react';
+import { Heart, Palette, DollarSign, Building2, User, Users, Flag, Book, LucideProps } from 'lucide-react';
 
-const verses = {
+type Religion = 'christianity' | 'islam' | 'judaism';
+
+const verses: Record<Religion, Record<string, string[]>> = {
     christianity: {
         physical: [
             "Do you not know that your bodies are temples of the Holy Spirit? - 1 Cor 6:19",
@@ -130,7 +132,14 @@ const verses = {
     }
 };
 
-const categories = [
+interface Category {
+    id: string;
+    name: string;
+    icon: FC<LucideProps>;
+    color: string;
+}
+
+const categories: Category[] = [
     { id: 'physical', name: 'PHYSICAL', icon: Heart, color: 'bg-red-500' },
     { id: 'hobby', name: 'HOBBY', icon: Palette, color: 'bg-purple-500' },
     { id: 'income', name: 'INCOME & EXPENSES', icon: DollarSign, color: 'bg-green-500' },
@@ -141,7 +150,30 @@ const categories = [
     { id: 'spiritual', name: 'SPIRITUAL', icon: Book, color: 'bg-yellow-600' }
 ];
 
-const CategoryCard = memo(({
+interface CategoryData {
+    [categoryId: string]: { [field: string]: string };
+}
+
+interface VerseIndices {
+    [categoryId: string]: number;
+}
+
+interface CategoryCardProps {
+    category: Category;
+    data: { [field: string]: string };
+    religion: Religion | null;
+    verseIndices: VerseIndices;
+    cycleVerse: (categoryId: string) => void;
+    updateField: (categoryId: string, field: string, value: string) => void;
+    addTimestamp: (categoryId: string, field: string) => void;
+    setShowConstitution: Dispatch<SetStateAction<boolean>>;
+    setShowResetReligionPrompt: Dispatch<SetStateAction<boolean>>;
+    showResetReligionPrompt: boolean;
+    resetReligion: () => void;
+}
+
+
+const CategoryCard: FC<CategoryCardProps> = memo(({
     category,
     data,
     religion,
@@ -179,7 +211,7 @@ const CategoryCard = memo(({
                             value={data.physical_goals || ''}
                             onChange={(e) => updateField(category.id, 'physical_goals', e.target.value)}
                             className="w-full text-xs p-1 border rounded"
-                            rows="2"
+                            rows={2}
                         />
                     </div>
                     <div>
@@ -189,7 +221,7 @@ const CategoryCard = memo(({
                             value={data.physical_actions || ''}
                             onChange={(e) => updateField(category.id, 'physical_actions', e.target.value)}
                             className="w-full text-xs p-1 border rounded"
-                            rows="2"
+                            rows={2}
                         />
                     </div>
                     <div>
@@ -205,7 +237,7 @@ const CategoryCard = memo(({
                             onChange={(e) => updateField(category.id, 'physical_journal', e.target.value)}
                             placeholder="Journal..."
                             className="w-full text-xs p-1 border rounded"
-                            rows="3"
+                            rows={3}
                         />
                     </div>
                 </div>
@@ -220,7 +252,7 @@ const CategoryCard = memo(({
                             value={data.hobbies_list || ''}
                             onChange={(e) => updateField(category.id, 'hobbies_list', e.target.value)}
                             className="w-full text-xs p-1 border rounded"
-                            rows="1"
+                            rows={1}
                         />
                     </div>
                     <div>
@@ -230,7 +262,7 @@ const CategoryCard = memo(({
                             value={data.hobby_goals || ''}
                             onChange={(e) => updateField(category.id, 'hobby_goals', e.target.value)}
                             className="w-full text-xs p-1 border rounded"
-                            rows="2"
+                            rows={2}
                         />
                     </div>
                     <div>
@@ -246,7 +278,7 @@ const CategoryCard = memo(({
                             onChange={(e) => updateField(category.id, 'hobby_journal', e.target.value)}
                             placeholder="Journal..."
                             className="w-full text-xs p-1 border rounded"
-                            rows="3"
+                            rows={3}
                         />
                     </div>
                 </div>
@@ -261,7 +293,7 @@ const CategoryCard = memo(({
                             value={data.income_sources || ''}
                             onChange={(e) => updateField(category.id, 'income_sources', e.target.value)}
                             className="w-full text-xs p-1 border rounded"
-                            rows="2"
+                            rows={2}
                         />
                     </div>
                     <div>
@@ -277,7 +309,7 @@ const CategoryCard = memo(({
                             onChange={(e) => updateField(category.id, 'income_journal', e.target.value)}
                             placeholder="Journal..."
                             className="w-full text-xs p-1 border rounded"
-                            rows="3"
+                            rows={3}
                         />
                     </div>
                 </div>
@@ -327,7 +359,7 @@ const CategoryCard = memo(({
                             value={data.oneonone_goals || ''}
                             onChange={(e) => updateField(category.id, 'oneonone_goals', e.target.value)}
                             className="w-full text-xs p-1 border rounded"
-                            rows="1"
+                            rows={1}
                         />
                     </div>
                     <div>
@@ -343,7 +375,7 @@ const CategoryCard = memo(({
                             onChange={(e) => updateField(category.id, 'oneonone_journal', e.target.value)}
                             placeholder="Journal..."
                             className="w-full text-xs p-1 border rounded"
-                            rows="3"
+                            rows={3}
                         />
                     </div>
                 </div>
@@ -358,7 +390,7 @@ const CategoryCard = memo(({
                             value={data.family_contacts || ''}
                             onChange={(e) => updateField(category.id, 'family_contacts', e.target.value)}
                             className="w-full text-xs p-1 border rounded"
-                            rows="2"
+                            rows={2}
                         />
                     </div>
                     <div>
@@ -374,7 +406,7 @@ const CategoryCard = memo(({
                             onChange={(e) => updateField(category.id, 'family_journal', e.target.value)}
                             placeholder="Journal..."
                             className="w-full text-xs p-1 border rounded"
-                            rows="3"
+                            rows={3}
                         />
                     </div>
                 </div>
@@ -395,7 +427,7 @@ const CategoryCard = memo(({
                             value={data.politics_research || ''}
                             onChange={(e) => updateField(category.id, 'politics_research', e.target.value)}
                             className="w-full text-xs p-1 border rounded"
-                            rows="2"
+                            rows={2}
                         />
                     </div>
                     <div>
@@ -411,7 +443,7 @@ const CategoryCard = memo(({
                             onChange={(e) => updateField(category.id, 'politics_journal', e.target.value)}
                             placeholder="Journal..."
                             className="w-full text-xs p-1 border rounded"
-                            rows="3"
+                            rows={3}
                         />
                     </div>
                 </div>
@@ -426,7 +458,7 @@ const CategoryCard = memo(({
                             value={data.spiritual_practices || ''}
                             onChange={(e) => updateField(category.id, 'spiritual_practices', e.target.value)}
                             className="w-full text-xs p-1 border rounded"
-                            rows="2"
+                            rows={2}
                         />
                     </div>
                     <div>
@@ -442,7 +474,7 @@ const CategoryCard = memo(({
                             onChange={(e) => updateField(category.id, 'spiritual_journal', e.target.value)}
                             placeholder="Journal..."
                             className="w-full text-xs p-1 border rounded"
-                            rows="3"
+                            rows={3}
                         />
                     </div>
                 </div>
@@ -476,9 +508,9 @@ const CategoryCard = memo(({
 });
 
 export default function BiblicalLifeDashboard() {
-    const [religion, setReligion] = useState(null);
+    const [religion, setReligion] = useState<Religion | null>(null);
     const [showReligionPopup, setShowReligionPopup] = useState(false);
-    const [categoryData, setCategoryData] = useState(() => {
+    const [categoryData, setCategoryData] = useState<CategoryData>(() => {
         try {
             const storedData = localStorage.getItem('categoryData');
             return storedData ? JSON.parse(storedData) : {};
@@ -488,9 +520,9 @@ export default function BiblicalLifeDashboard() {
         }
     });
     const [showConstitution, setShowConstitution] = useState(false);
-    const [verseIndices, setVerseIndices] = useState(() => {
+    const [verseIndices, setVerseIndices] = useState<VerseIndices>(() => {
         // Initialize verse indices based on category length for initial load
-        const initialIndices = {};
+        const initialIndices: VerseIndices = {};
         categories.forEach(cat => {
             initialIndices[cat.id] = 0;
         });
@@ -504,7 +536,7 @@ export default function BiblicalLifeDashboard() {
     const [showResetAllFieldsPrompt, setShowResetAllFieldsPrompt] = useState(false);
 
     useEffect(() => {
-        const storedReligion = localStorage.getItem('userReligion');
+        const storedReligion = localStorage.getItem('userReligion') as Religion | null;
         if (storedReligion) {
             setReligion(storedReligion);
         } else {
@@ -520,11 +552,11 @@ export default function BiblicalLifeDashboard() {
         }
     }, [categoryData]);
 
-    const handleReligionSelect = useCallback((selectedReligion) => {
+    const handleReligionSelect = useCallback((selectedReligion: Religion) => {
         localStorage.setItem('userReligion', selectedReligion);
         setReligion(selectedReligion);
         // Reset verse indices for the new religion
-        const newVerseIndices = {};
+        const newVerseIndices: VerseIndices = {};
         categories.forEach(cat => {
             newVerseIndices[cat.id] = 0;
         });
@@ -543,7 +575,7 @@ export default function BiblicalLifeDashboard() {
         localStorage.removeItem('categoryData');
         setCategoryData({});
         // Re-initialize verse indices
-        const newVerseIndices = {};
+        const newVerseIndices: VerseIndices = {};
         categories.forEach(cat => {
             newVerseIndices[cat.id] = 0;
         });
@@ -551,22 +583,22 @@ export default function BiblicalLifeDashboard() {
         setShowResetAllFieldsPrompt(false);
     }, []);
 
-    const cycleVerse = useCallback((categoryId) => {
+    const cycleVerse = useCallback((categoryId: string) => {
         if (!religion) return;
         setVerseIndices(prev => ({
             ...prev,
             [categoryId]: (prev[categoryId] + 1) % verses[religion][categoryId].length
         }));
-    }, [religion, verses]);
+    }, [religion]);
 
-    const updateField = useCallback((categoryId, field, value) => {
+    const updateField = useCallback((categoryId: string, field: string, value: string) => {
         setCategoryData(prev => ({
             ...prev,
             [categoryId]: { ...prev[categoryId], [field]: value }
         }));
     }, []);
 
-    const addTimestamp = useCallback((categoryId, field) => {
+    const addTimestamp = useCallback((categoryId: string, field: string) => {
         const data = categoryData[categoryId] || {};
         const current = data[field] || '';
         const timestamp = new Date().toLocaleString();
@@ -584,35 +616,54 @@ export default function BiblicalLifeDashboard() {
         setTimeout(() => setQuickResult(''), 3000);
     }, [quickAdd]);
 
-    const getAllJournalEntries = useCallback(() => {
-        const entries = [];
+    interface JournalEntry {
+        category: string;
+        text: string;
+        color: string;
+        content?: string;
+    }
+
+    const getAllJournalEntries = useCallback((): JournalEntry[] => {
+        const entries: JournalEntry[] = [];
         categories.forEach(cat => {
             const journalField = `${cat.id}_journal`;
             const data = categoryData[cat.id] || {};
             const journal = data[journalField];
             if (journal) {
-                const lines = journal.split('\n');
-                lines.forEach(line => {
+                const lines: string[] = journal.split('\n');
+                let currentEntry: JournalEntry | null = null;
+                lines.forEach((line: string) => {
                     if (line.includes('---') && line.includes(':')) {
-                        entries.push({ category: cat.name, text: line, color: cat.color });
-                    } else if (line.trim()) {
-                        if (entries.length > 0) {
-                            entries[entries.length - 1].content = (entries[entries.length - 1].content || '') + '\n' + line;
+                        if (currentEntry) {
+                            entries.push(currentEntry);
                         }
+                        currentEntry = { category: cat.name, text: line, color: cat.color, content: '' };
+                    } else if (line.trim() && currentEntry) {
+                        currentEntry.content += (currentEntry.content ? '\n' : '') + line;
                     }
                 });
+                if (currentEntry) {
+                    entries.push(currentEntry);
+                }
             }
         });
         return entries.sort((a, b) => {
-            const dateA = a.text.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
-            const dateB = b.text.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
-            if (dateA && dateB) return new Date(dateB[0]) - new Date(dateA[0]);
+            const dateA = a.text.match(/(\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{1,2}:\d{1,2} (?:AM|PM))/);
+            const dateB = b.text.match(/(\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{1,2}:\d{1,2} (?:AM|PM))/);
+            if (dateA && dateB) return new Date(dateB[0]).getTime() - new Date(dateA[0]).getTime();
             return 0;
         });
     }, [categoryData]);
 
-    const getAllActions = useCallback(() => {
-        const actions = [];
+    interface ActionItem {
+        category: string;
+        field: string;
+        text: string;
+        color: string;
+    }
+
+    const getAllActions = useCallback((): ActionItem[] => {
+        const actions: ActionItem[] = [];
         categories.forEach(cat => {
             const data = categoryData[cat.id] || {};
             Object.keys(data).forEach(key => {
