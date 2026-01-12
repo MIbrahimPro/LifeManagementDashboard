@@ -3,16 +3,37 @@
 import Groq from "groq-sdk";
 import { z } from "zod";
 
+const verseObjectSchema = z.object({ text: z.string(), reference: z.string() });
+
 const categoriesSchema = z.object({
-    spiritual: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
-    physical: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
-    family: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
-    oneonone: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
-    assets: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
-    income: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
-    hobby: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
-    politics: z.array(z.object({ text: z.string(), reference: z.string() })).min(1),
-});
+    spiritual: z.array(verseObjectSchema).optional(),
+    physical: z.array(verseObjectSchema).optional(),
+    family: z.array(verseObjectSchema).optional(),
+    oneonone: z.array(verseObjectSchema).optional(),
+    assets: z.array(verseObjectSchema).optional(),
+    income: z.array(verseObjectSchema).optional(),
+    hobby: z.array(verseObjectSchema).optional(),
+    politics: z.array(verseObjectSchema).optional(),
+}).strict();
+
+const defaultVerses = {
+    spiritual: [{ text: "Focus on your inner growth and spiritual practice.", reference: "Universal Wisdom" }],
+    physical: [{ text: "Take care of your body as it is your temple.", reference: "Universal Wisdom" }],
+    family: [{ text: "Nurture your relationships with love and patience.", reference: "Universal Wisdom" }],
+    oneonone: [{ text: "Treat others with kindness and respect.", reference: "Universal Wisdom" }],
+    assets: [{ text: "Manage your resources wisely and responsibly.", reference: "Universal Wisdom" }],
+    income: [{ text: "Work with integrity and pursue honest income.", reference: "Universal Wisdom" }],
+    hobby: [{ text: "Pursue activities that bring you joy and fulfillment.", reference: "Universal Wisdom" }],
+    politics: [{ text: "Engage in civic life with compassion and reason.", reference: "Universal Wisdom" }],
+};
+
+const fillMissingCategories = (data) => {
+    const result = {};
+    Object.keys(defaultVerses).forEach(category => {
+        result[category] = (data[category] && data[category].length > 0) ? data[category] : defaultVerses[category];
+    });
+    return result;
+};
 
 export const handler = async (event) => {
     if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method Not Allowed" };
@@ -63,11 +84,12 @@ export const handler = async (event) => {
         const rawJson = JSON.parse(chatCompletion.choices[0].message.content);
         console.log("Raw JSON from Groq:", JSON.stringify(rawJson));
         const validatedData = categoriesSchema.parse(rawJson);
+        const filledData = fillMissingCategories(validatedData);
 
         return {
             statusCode: 200,
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ verses: validatedData }),
+            body: JSON.stringify({ verses: filledData }),
         };
     } catch (error) {
         console.error("GROQ Error:", error);
