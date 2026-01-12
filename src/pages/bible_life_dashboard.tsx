@@ -5,26 +5,26 @@ import type { LucideProps } from 'lucide-react';
 import { versesCache } from '../data/verses';
 import type { Religion } from '../data/verses';
 
-// AI verse fetching function
-async function getAiVerse(religion: string, category: string): Promise<string> {
+// AI verse fetching function - now gets all verses for a religion at once
+async function getAiVerses(religion: string): Promise<Record<string, string[]>> {
     try {
         const response = await fetch('/.netlify/functions/get-verse', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ religion, category })
+            body: JSON.stringify({ religion })
         });
 
         const data = await response.json();
 
         if (!response.ok) {
             console.error("API Error:", response.status, data);
-            return "Stay strong and keep moving forward.";
+            return {};
         }
 
-        return data.verse || "Stay strong and keep moving forward.";
+        return data.verses || {};
     } catch (error) {
         console.error("AI fetch failed:", error);
-        return "Stay strong and keep moving forward.";
+        return {};
     }
 }
 
@@ -85,43 +85,21 @@ const CategoryCard: FC<CategoryCardProps> = ({
     const [currentVerse, setCurrentVerse] = useState<string>("Loading...");
     const [isLoadingVerse, setIsLoadingVerse] = useState(false);
 
-    // Fetch verse when religion or category changes
+    // Fetch verse when category index changes (verses are already cached by religion)
     useEffect(() => {
         if (!religion) {
             setCurrentVerse("Loading...");
             return;
         }
 
-        const fetchVerse = async () => {
-            setIsLoadingVerse(true);
-            try {
-                // Check cache first
-                if (versesCache[religion] && versesCache[religion][category.id]) {
-                    const verseList = versesCache[religion][category.id];
-                    const index = verseIndices[category.id] % verseList.length;
-                    setCurrentVerse(verseList[index] || "Stay strong and keep moving forward.");
-                } else {
-                    // Fetch from AI
-                    const verse = await getAiVerse(religion, category.id);
-                    // Cache the verse
-                    if (!versesCache[religion]) {
-                        versesCache[religion] = {};
-                    }
-                    if (!versesCache[religion][category.id]) {
-                        versesCache[religion][category.id] = [];
-                    }
-                    versesCache[religion][category.id].push(verse);
-                    setCurrentVerse(verse);
-                }
-            } catch (error) {
-                console.error("Error fetching verse:", error);
-                setCurrentVerse("Stay strong and keep moving forward.");
-            } finally {
-                setIsLoadingVerse(false);
-            }
-        };
-
-        fetchVerse();
+        if (versesCache[religion] && versesCache[religion][category.id]) {
+            const verseList = versesCache[religion][category.id];
+            const index = verseIndices[category.id] % verseList.length;
+            setCurrentVerse(verseList[index] || "Stay strong and keep moving forward.");
+        } else {
+            // Should not happen if handleReligionSelect loaded all verses
+            setCurrentVerse("Verse not available.");
+        }
     }, [religion, category.id, verseIndices[category.id]]);
 
     const renderTextarea = (field: string, placeholder: string, rows: number = 2) => (
@@ -372,7 +350,7 @@ export default function BiblicalLifeDashboard() {
         }
     }, [categoryData]);
 
-    const handleReligionSelect = useCallback((selectedReligion: Religion) => {
+    const handleReligionSelect = useCallback(async (selectedReligion: Religion) => {
         localStorage.setItem('userReligion', selectedReligion);
         setReligion(selectedReligion);
         const newVerseIndices: VerseIndices = {};
@@ -380,6 +358,17 @@ export default function BiblicalLifeDashboard() {
             newVerseIndices[cat.id] = 0;
         });
         setVerseIndices(newVerseIndices);
+
+        // Fetch all verses for this religion (ONE API call for all categories)
+        console.log(`Fetching all verses for ${selectedReligion}`);
+        const allVerses = await getAiVerses(selectedReligion);
+
+        // Cache all verses
+        if (Object.keys(allVerses).length > 0) {
+            versesCache[selectedReligion] = allVerses;
+            console.log(`Cached verses for ${selectedReligion}:`, allVerses);
+        }
+
         setShowReligionPopup(false);
     }, []);
 
