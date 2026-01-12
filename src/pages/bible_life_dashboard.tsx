@@ -15,6 +15,12 @@ async function getAiVerse(religion: string, category: string): Promise<string> {
         });
 
         const data = await response.json();
+
+        if (!response.ok) {
+            console.error("API Error:", response.status, data);
+            return "Stay strong and keep moving forward.";
+        }
+
         return data.verse || "Stay strong and keep moving forward.";
     } catch (error) {
         console.error("AI fetch failed:", error);
