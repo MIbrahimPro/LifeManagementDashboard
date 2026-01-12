@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback, memo, FC, SetStateAction, Dispatch } from 'react';
-import { Heart, Palette, DollarSign, Building2, User, Users, Flag, Book, LucideProps } from 'lucide-react';
+import { useState, useEffect, useCallback, memo } from 'react';
+import type { FC, SetStateAction, Dispatch } from 'react';
+import { Heart, Palette, DollarSign, Building2, User, Users, Flag, Book } from 'lucide-react';
+import type { LucideProps } from 'lucide-react';
 
 type Religion = 'christianity' | 'islam' | 'judaism';
 
