@@ -100,14 +100,14 @@ interface Category {
 }
 
 const categories: Category[] = [
-    { id: 'spiritual', name: 'SPIRITUAL', icon: Book, color: 'bg-amber-600' },
     { id: 'physical', name: 'PHYSICAL', icon: Heart, color: 'bg-red-600' },
+    { id: 'hobby', name: 'HOBBY', icon: Palette, color: 'bg-purple-600' },
+    { id: 'income', name: 'INCOME & EXPENSES', icon: DollarSign, color: 'bg-green-600' },
+    { id: 'assets', name: 'ASSETS & LIABILITIES', icon: Building2, color: 'bg-blue-600' },
     { id: 'family', name: 'FAMILY & FRIENDS', icon: Users, color: 'bg-orange-600' },
     { id: 'oneonone', name: 'ONE-ON-ONE', icon: User, color: 'bg-yellow-600' },
-    { id: 'assets', name: 'ASSETS', icon: Building2, color: 'bg-blue-600' },
-    { id: 'income', name: 'INCOME', icon: DollarSign, color: 'bg-green-600' },
-    { id: 'hobby', name: 'HOBBY', icon: Palette, color: 'bg-purple-600' },
-    { id: 'politics', name: 'CIVIC', icon: Flag, color: 'bg-indigo-600' }
+    { id: 'politics', name: 'POLITICS', icon: Flag, color: 'bg-indigo-600' },
+    { id: 'spiritual', name: 'SPIRITUAL', icon: Book, color: 'bg-amber-600' }
 ];
 
 interface CategoryData {
@@ -402,25 +402,27 @@ export default function BiblicalLifeDashboard() {
 
     useEffect(() => {
         const storedReligion = localStorage.getItem('userReligion') as Religion | null;
-        if (storedReligion) {
-            setReligion(storedReligion);
-            // Fetch verses when page loads with stored religion (checks cache first)
-            (async () => {
-                setIsLoadingVerses(true);
-                try {
-                    const allVerses = await getAiVerses(storedReligion);
-                    if (Object.keys(allVerses).length > 0) {
-                        versesCache[storedReligion] = allVerses;
-                        console.log(`Loaded verses for ${storedReligion}:`, allVerses);
-                        setVersesRefreshKey(prev => prev + 1); // Trigger re-render
-                    }
-                } finally {
-                    setIsLoadingVerses(false);
-                }
-            })();
-        } else {
-            setShowReligionPopup(true);
+        const initialReligion = storedReligion || 'christianity';
+
+        if (!storedReligion) {
+            localStorage.setItem('userReligion', 'christianity');
         }
+        setReligion(initialReligion);
+
+        // Fetch verses when page loads with stored religion (checks cache first)
+        (async () => {
+            setIsLoadingVerses(true);
+            try {
+                const allVerses = await getAiVerses(initialReligion);
+                if (Object.keys(allVerses).length > 0) {
+                    versesCache[initialReligion] = allVerses;
+                    console.log(`Loaded verses for ${initialReligion}:`, allVerses);
+                    setVersesRefreshKey(prev => prev + 1); // Trigger re-render
+                }
+            } finally {
+                setIsLoadingVerses(false);
+            }
+        })();
     }, []);
 
     useEffect(() => {
@@ -749,9 +751,9 @@ export default function BiblicalLifeDashboard() {
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
                     {categories.map(category => (
-                        <div key={category.id} className={category.id === 'assets' ? 'lg:col-span-2' : ''}>
+                        <div key={category.id}>
                             <CategoryCard
                                 category={category}
                                 data={categoryData[category.id] || {}}
@@ -879,14 +881,30 @@ export default function BiblicalLifeDashboard() {
                 </Modal>
 
                 <footer style={{ borderTopColor: isDarkMode ? '#374151' : '#e5e7eb' }} className="mt-12 pt-8 border-t">
-                    <div className="flex justify-center items-center gap-6">
-                        <button onClick={() => setShowResetAllFieldsPrompt(true)} style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="text-sm font-medium transition hover:text-red-600">
-                            Reset All Data
-                        </button>
-                        <div style={{ backgroundColor: isDarkMode ? '#4b5563' : '#d1d5db' }} className="w-px h-4"></div>
-                        <button onClick={() => setShowResetReligionPrompt(true)} style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="text-sm font-medium transition hover:text-red-600">
-                            Change Religion
-                        </button>
+                    <div className="flex flex-col items-center gap-6">
+                        <div className="flex flex-wrap justify-center gap-2">
+                            {['christianity', 'islam', 'judaism', 'buddhism', 'hinduism', 'Atheism'].map((r) => (
+                                <button
+                                    key={r}
+                                    onClick={() => handleReligionSelect(r as Religion)}
+                                    className={`px-4 py-2 rounded-full text-sm font-medium transition ${religion === r
+                                            ? 'bg-blue-600 text-white shadow-md'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                                        }`}
+                                >
+                                    {r.charAt(0).toUpperCase() + r.slice(1)}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex justify-center items-center gap-6">
+                            <button onClick={() => setShowResetAllFieldsPrompt(true)} style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="text-sm font-medium transition hover:text-red-600">
+                                Reset All Data
+                            </button>
+                            <div style={{ backgroundColor: isDarkMode ? '#4b5563' : '#d1d5db' }} className="w-px h-4"></div>
+                            <button onClick={() => setShowResetReligionPrompt(true)} style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="text-sm font-medium transition hover:text-red-600">
+                                Custom Religion
+                            </button>
+                        </div>
                     </div>
                 </footer>
             </div>
