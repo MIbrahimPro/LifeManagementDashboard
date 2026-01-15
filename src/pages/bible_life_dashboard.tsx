@@ -1,385 +1,49 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { FC, SetStateAction, Dispatch } from 'react';
-import { Heart, Palette, DollarSign, Building2, User, Users, Flag, Book, Sun, Moon, Loader } from 'lucide-react';
-import type { LucideProps } from 'lucide-react';
-import { versesCache } from '../data/verses';
+import { Sun, Moon, Loader, ChevronDown } from 'lucide-react';
 import type { Religion } from '../data/verses';
-
-// Type for verse with reference
-interface VerseData {
-    text: string;
-    reference: string;
-}
-
-// Cache key generator
-const getCacheKey = (religion: string) => `verses_${religion}`;
-const getCacheTimeKey = (religion: string) => `verses_time_${religion}`;
-
-// Check if cache is still valid (less than 1 hour old)
-const isCacheValid = (religion: string): boolean => {
-    const timeKey = getCacheTimeKey(religion);
-    const cachedTime = localStorage.getItem(timeKey);
-    if (!cachedTime) return false;
-
-    const timestamp = parseInt(cachedTime, 10);
-    const now = Date.now();
-    const oneHourInMs = 60 * 60 * 1000;
-
-    return (now - timestamp) < oneHourInMs;
-};
-
-// Format verses from API response (convert to display format)
-const formatVerses = (apiVerses: Record<string, VerseData[]>): Record<string, string[]> => {
-    const formatted: Record<string, string[]> = {};
-
-    Object.keys(apiVerses).forEach(category => {
-        formatted[category] = apiVerses[category].map(v => `${v.text}\n— ${v.reference}`);
-    });
-
-    return formatted;
-};
-
-// AI verse fetching function - now gets all verses for a religion at once
-async function getAiVerses(religion: string): Promise<Record<string, string[]>> {
-    try {
-        const cacheKey = getCacheKey(religion);
-        const cacheTimeKey = getCacheTimeKey(religion);
-
-        // Check if we have valid cached data
-        if (isCacheValid(religion)) {
-            console.log(`Using cached verses for ${religion}`);
-            const cached = localStorage.getItem(cacheKey);
-            if (cached) {
-                return JSON.parse(cached);
-            }
-        }
-
-        // Fetch fresh verses from API
-        console.log(`Fetching fresh verses for ${religion}`);
-        const response = await fetch('/.netlify/functions/get-verse', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ religion })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error("API Error:", response.status, data);
-            return {};
-        }
-
-        const apiVerses = data.verses || {};
-        const formattedVerses = formatVerses(apiVerses);
-
-        // Store formatted verses and timestamp in localStorage
-        localStorage.setItem(cacheKey, JSON.stringify(formattedVerses));
-        localStorage.setItem(cacheTimeKey, Date.now().toString());
-
-        return formattedVerses;
-    } catch (error) {
-        console.error("AI fetch failed:", error);
-
-        // Try to return cached data even if expired, as fallback
-        const cacheKey = getCacheKey(religion);
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-            console.log(`Using expired cache as fallback for ${religion}`);
-            return JSON.parse(cached);
-        }
-
-        return {};
-    }
-}
-
-interface Category {
-    id: string;
-    name: string;
-    icon: FC<LucideProps>;
-    color: string;
-}
-
-const categories: Category[] = [
-    { id: 'physical', name: 'PHYSICAL', icon: Heart, color: 'bg-red-600' },
-    { id: 'hobby', name: 'HOBBY', icon: Palette, color: 'bg-purple-600' },
-    { id: 'income', name: 'INCOME & EXPENSES', icon: DollarSign, color: 'bg-green-600' },
-    { id: 'assets', name: 'ASSETS & LIABILITIES', icon: Building2, color: 'bg-blue-600' },
-    { id: 'family', name: 'FAMILY & FRIENDS', icon: Users, color: 'bg-orange-600' },
-    { id: 'oneonone', name: 'ONE-ON-ONE', icon: User, color: 'bg-yellow-600' },
-    { id: 'politics', name: 'POLITICS', icon: Flag, color: 'bg-indigo-600' },
-    { id: 'spiritual', name: 'SPIRITUAL', icon: Book, color: 'bg-amber-600' }
-];
-
-interface CategoryData {
-    [categoryId: string]: { [field: string]: string };
-}
+import { getAiVerses } from '../data/verseUtils';
+import { versesCache } from '../data/verses';
+import { useTodoList, useActionsList, useJournal } from '../hooks/useLifeTools';
+import { QuickAddModal } from '../components/QuickAddModal';
+import { TodoListModal } from '../components/TodoListModal';
+import { ActionsModal } from '../components/ActionsModal';
+import { TopTools } from '../components/TopTools';
+import { CategoryCardContainer } from '../components/CategoryCardContainer';
+import { JourneyView } from '../components/JourneyView';
 
 interface VerseIndices {
     [categoryId: string]: number;
 }
 
-interface CategoryCardProps {
-    category: Category;
-    data: { [field: string]: string };
-    religion: Religion | null;
-    verseIndices: VerseIndices;
-    cycleVerse: (categoryId: string) => void;
-    updateField: (categoryId: string, field: string, value: string) => void;
-    addTimestamp: (categoryId: string, field: string) => void;
-    setShowConstitution: Dispatch<SetStateAction<boolean>>;
-    setShowResetReligionPrompt: Dispatch<SetStateAction<boolean>>;
-    showResetReligionPrompt: boolean;
-    resetReligion: () => void;
-    isDarkMode: boolean;
-    versesRefreshKey: number;
-}
-
-
-const CategoryCard: FC<CategoryCardProps> = ({
-    category,
-    data,
-    religion,
-    verseIndices,
-    cycleVerse,
-    updateField,
-    addTimestamp,
-    setShowConstitution,
-    isDarkMode,
-    versesRefreshKey,
-}) => {
-    const Icon = category.icon;
-    const [currentVerse, setCurrentVerse] = useState<string>("Loading...");
-
-    // Fetch verse when category index changes (verses are already cached by religion)
-    useEffect(() => {
-        if (!religion) {
-            setCurrentVerse("Loading...");
-            return;
-        }
-
-        if (versesCache[religion] && versesCache[religion][category.id]) {
-            const verseList = versesCache[religion][category.id];
-            const index = verseIndices[category.id] % verseList.length;
-            setCurrentVerse(verseList[index] || "Stay strong and keep moving forward.");
-        } else {
-            // Should not happen if handleReligionSelect loaded all verses
-            setCurrentVerse("Verse not available.");
-        }
-    }, [religion, category.id, verseIndices[category.id], versesRefreshKey]);
-
-    const renderTextarea = (field: string, placeholder: string, rows: number = 2) => (
-        <textarea
-            placeholder={placeholder}
-            value={data[field] || ''}
-            onChange={(e) => updateField(category.id, field, e.target.value)}
-            style={{
-                backgroundColor: isDarkMode ? '#374151' : '#ffffff',
-                borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
-                color: isDarkMode ? '#f3f4f6' : '#111827'
-            }}
-            className="w-full text-sm p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-500 transition resize-none"
-            rows={rows}
-        />
-    );
-
-    const renderJournal = (field: string) => (
-        <div>
-            <div className="flex justify-between items-center mb-2">
-                <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold">Journal</label>
-                <button
-                    onClick={() => addTimestamp(category.id, field)}
-                    className={`${category.color} text-white px-3 py-1 rounded-lg text-xs font-semibold hover:opacity-90 transition`}
-                >
-                    +Date
-                </button>
-            </div>
-            <textarea
-                value={data[field] || ''}
-                onChange={(e) => updateField(category.id, field, e.target.value)}
-                placeholder="Your thoughts, prayers, and reflections..."
-                style={{
-                    backgroundColor: isDarkMode ? '#374151' : '#ffffff',
-                    borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
-                    color: isDarkMode ? '#f3f4f6' : '#111827'
-                }}
-                className="w-full text-sm p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-blue-500 transition resize-none"
-                rows={4}
-            />
-        </div>
-    );
-
-    return (
-        <div style={{
-            backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-            borderColor: isDarkMode ? '#374151' : '#e5e7eb'
-        }} className="rounded-2xl shadow-sm border p-5 flex flex-col h-full hover:shadow-md transition">
-            <div className="flex items-center gap-3 mb-4">
-                <div className={`p-2.5 rounded-xl ${category.color}`}>
-                    <Icon size={20} className="text-white" />
-                </div>
-                <h2 style={{ color: isDarkMode ? '#f3f4f6' : '#111827' }} className="text-base font-bold">{category.name}</h2>
-            </div>
-
-            <div
-                style={{
-                    backgroundColor: isDarkMode ? 'rgba(92, 51, 0, 0.15)' : '#fffbeb',
-                    borderLeftColor: isDarkMode ? '#b45309' : '#fcd34d',
-                    color: isDarkMode ? '#fef3c7' : '#78350f'
-                }}
-                className="border-l-4 p-3 rounded-lg mb-4 text-xs italic cursor-pointer transition hover:opacity-80"
-                onClick={() => cycleVerse(category.id)}
-            >
-                {currentVerse}
-            </div>
-
-            <div className="space-y-3 grow">
-                {category.id === 'spiritual' && (
-                    <>
-                        <div>
-                            <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-1">Practices</label>
-                            {renderTextarea('spiritual_practices', "Daily prayers, weekly readings...")}
-                        </div>
-                        {renderJournal('spiritual_journal')}
-                    </>
-                )}
-
-                {category.id === 'physical' && (
-                    <>
-                        <div>
-                            <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-1">Goals (S/M/L)</label>
-                            {renderTextarea('physical_goals', "Short, Medium, Long term goals...")}
-                        </div>
-                        <div>
-                            <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-1">Actions</label>
-                            {renderTextarea('physical_actions', "Workout plan, dietary changes...")}
-                        </div>
-                        {renderJournal('physical_journal')}
-                    </>
-                )}
-
-                {category.id === 'family' && (
-                    <>
-                        <div>
-                            <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-1">Contacts & Intentions</label>
-                            {renderTextarea('family_contacts', "Call mom, pray for cousin...")}
-                        </div>
-                        {renderJournal('family_journal')}
-                    </>
-                )}
-
-                {category.id === 'oneonone' && (
-                    <>
-                        <div>
-                            <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-1">Relationship Goals</label>
-                            {renderTextarea('oneonone_goals', "Spend quality time, have patient conversations...")}
-                        </div>
-                        {renderJournal('oneonone_journal')}
-                    </>
-                )}
-
-                {category.id === 'income' && (
-                    <>
-                        <div>
-                            <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-1">Income Sources & Tithe</label>
-                            {renderTextarea('income_sources', "Salary, side business, tithe allocation...")}
-                        </div>
-                        {renderJournal('income_journal')}
-                    </>
-                )}
-
-                {category.id === 'assets' && (
-                    <div className="space-y-2">
-                        <div className="grid grid-cols-3 gap-2 mb-1">
-                            <div style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-center text-sm font-semibold">Goals</div>
-                            <div style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-center text-sm font-semibold">Actions</div>
-                            <div style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-center text-sm font-semibold">Research</div>
-                        </div>
-                        {[1, 2, 3].map(n => (
-                            <div key={n} className="grid grid-cols-3 gap-2">
-                                <input type="text" placeholder={`Goal ${n}`} value={data[`goal${n}`] || ''} onChange={(e) => updateField(category.id, `goal${n}`, e.target.value)} style={{
-                                    backgroundColor: isDarkMode ? '#374151' : '#ffffff',
-                                    borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
-                                    color: isDarkMode ? '#f3f4f6' : '#111827'
-                                }} className="text-sm p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-                                <input type="text" placeholder={`Action ${n}`} value={data[`action${n}`] || ''} onChange={(e) => updateField(category.id, `action${n}`, e.target.value)} style={{
-                                    backgroundColor: isDarkMode ? '#374151' : '#ffffff',
-                                    borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
-                                    color: isDarkMode ? '#f3f4f6' : '#111827'
-                                }} className="text-sm p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-                                <input type="text" placeholder={`Research ${n}`} value={data[`resource${n}`] || ''} onChange={(e) => updateField(category.id, `resource${n}`, e.target.value)} style={{
-                                    backgroundColor: isDarkMode ? '#374151' : '#ffffff',
-                                    borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
-                                    color: isDarkMode ? '#f3f4f6' : '#111827'
-                                }} className="text-sm p-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {category.id === 'hobby' && (
-                    <>
-                        <div>
-                            <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-1">Hobbies & Skills</label>
-                            {renderTextarea('hobbies_list', "Painting, coding, gardening...")}
-                        </div>
-                        <div>
-                            <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-1">Goals</label>
-                            {renderTextarea('hobby_goals', "Finish a painting, learn a new song...")}
-                        </div>
-                        {renderJournal('hobby_journal')}
-                    </>
-                )}
-
-                {category.id === 'politics' && (
-                    <>
-                        <button
-                            onClick={() => setShowConstitution(true)}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-3 rounded-lg text-sm font-semibold transition flex items-center justify-center gap-2"
-                        >
-                            <Flag size={16} /> US Constitution
-                        </button>
-                        <div>
-                            <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-1">Civic Research & Prayer Topics</label>
-                            {renderTextarea('politics_research', "Local elections, community service, pray for leaders...")}
-                        </div>
-                        {renderJournal('politics_journal')}
-                    </>
-                )}
-            </div>
-        </div>
-    );
-};
-
 export default function BiblicalLifeDashboard() {
-    const [religion, setReligion] = useState<Religion | null>(null);
-    const [showReligionPopup, setShowReligionPopup] = useState(false);
-    const [categoryData, setCategoryData] = useState<CategoryData>(() => {
-        try {
-            const storedData = localStorage.getItem('categoryData');
-            return storedData ? JSON.parse(storedData) : {};
-        } catch (error) {
-            console.error("Error parsing categoryData from localStorage", error);
-            return {};
-        }
-    });
-    const [showConstitution, setShowConstitution] = useState(false);
-    const [verseIndices, setVerseIndices] = useState<VerseIndices>(() => {
-        const initialIndices: VerseIndices = {};
-        categories.forEach(cat => {
-            initialIndices[cat.id] = 0;
-        });
-        return initialIndices;
-    });
-    const [quickAdd, setQuickAdd] = useState('');
-    const [quickResult, setQuickResult] = useState('');
-    const [showAllJournals, setShowAllJournals] = useState(false);
-    const [showCrossActions, setShowCrossActions] = useState(false);
-    const [showResetReligionPrompt, setShowResetReligionPrompt] = useState(false);
-    const [showResetAllFieldsPrompt, setShowResetAllFieldsPrompt] = useState(false);
+    const [religion, setReligion] = useState<Religion | null>(() => 'christianity');
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [isLoadingVerses, setIsLoadingVerses] = useState(false);
     const [versesRefreshKey, setVersesRefreshKey] = useState(0);
+    const [verseIndices, setVerseIndices] = useState<VerseIndices>(() => {
+        const indices: VerseIndices = {};
+        ['physical', 'hobby', 'income', 'assets', 'family', 'oneonone', 'politics', 'spiritual'].forEach(cat => {
+            indices[cat] = 0;
+        });
+        return indices;
+    });
 
+    // Custom hooks for data management
+    const { todos, addTodo, toggleTodo, deleteTodo, clearCompletedTodos } = useTodoList();
+    const { actions, addAction, toggleAction, deleteAction } = useActionsList();
+    const { entries, addEntry } = useJournal();
+
+    // UI state
+    const [showQuickAdd, setShowQuickAdd] = useState(false);
+    const [showTodoList, setShowTodoList] = useState(false);
+    const [showActions, setShowActions] = useState(false);
+    const [showJourney, setShowJourney] = useState(false);
+    const [quickAddInput, setQuickAddInput] = useState('');
+    const [addToDropdownOpen, setAddToDropdownOpen] = useState(false);
+    const [showCustomReligionForm, setShowCustomReligionForm] = useState(false);
+    const [customReligionInput, setCustomReligionInput] = useState('');
+
+    // Initialize theme
     useEffect(() => {
         const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         setIsDarkMode(isDark);
@@ -390,6 +54,7 @@ export default function BiblicalLifeDashboard() {
         }
     }, []);
 
+    // Toggle theme
     const toggleTheme = () => {
         const newIsDarkMode = !isDarkMode;
         setIsDarkMode(newIsDarkMode);
@@ -400,6 +65,7 @@ export default function BiblicalLifeDashboard() {
         }
     };
 
+    // Load religion and verses on mount
     useEffect(() => {
         const storedReligion = localStorage.getItem('userReligion') as Religion | null;
         const initialReligion = storedReligion || 'christianity';
@@ -409,7 +75,6 @@ export default function BiblicalLifeDashboard() {
         }
         setReligion(initialReligion);
 
-        // Fetch verses when page loads with stored religion (checks cache first)
         (async () => {
             setIsLoadingVerses(true);
             try {
@@ -417,7 +82,7 @@ export default function BiblicalLifeDashboard() {
                 if (Object.keys(allVerses).length > 0) {
                     versesCache[initialReligion] = allVerses;
                     console.log(`Loaded verses for ${initialReligion}:`, allVerses);
-                    setVersesRefreshKey(prev => prev + 1); // Trigger re-render
+                    setVersesRefreshKey(prev => prev + 1);
                 }
             } finally {
                 setIsLoadingVerses(false);
@@ -425,62 +90,32 @@ export default function BiblicalLifeDashboard() {
         })();
     }, []);
 
-    useEffect(() => {
-        try {
-            localStorage.setItem('categoryData', JSON.stringify(categoryData));
-        } catch (error) {
-            console.error("Error saving categoryData to localStorage", error);
-        }
-    }, [categoryData]);
-
     const handleReligionSelect = useCallback(async (selectedReligion: Religion) => {
         localStorage.setItem('userReligion', selectedReligion);
         setReligion(selectedReligion);
         const newVerseIndices: VerseIndices = {};
-        categories.forEach(cat => {
-            newVerseIndices[cat.id] = 0;
+        ['physical', 'hobby', 'income', 'assets', 'family', 'oneonone', 'politics', 'spiritual'].forEach(cat => {
+            newVerseIndices[cat] = 0;
         });
         setVerseIndices(newVerseIndices);
 
-        // Fetch all verses for this religion (ONE API call for all categories)
         setIsLoadingVerses(true);
         try {
             console.log(`Fetching all verses for ${selectedReligion}`);
             const allVerses = await getAiVerses(selectedReligion);
 
-            // Cache all verses
             if (Object.keys(allVerses).length > 0) {
                 versesCache[selectedReligion] = allVerses;
                 console.log(`Cached verses for ${selectedReligion}:`, allVerses);
-                setVersesRefreshKey(prev => prev + 1); // Trigger re-render
+                setVersesRefreshKey(prev => prev + 1);
             }
         } finally {
             setIsLoadingVerses(false);
-            setShowReligionPopup(false);
         }
-    }, []);
-
-    const resetReligion = useCallback(() => {
-        localStorage.removeItem('userReligion');
-        setReligion(null);
-        setShowReligionPopup(true);
-        setShowResetReligionPrompt(false);
-    }, []);
-
-    const resetAllFields = useCallback(() => {
-        localStorage.removeItem('categoryData');
-        setCategoryData({});
-        const newVerseIndices: VerseIndices = {};
-        categories.forEach(cat => {
-            newVerseIndices[cat.id] = 0;
-        });
-        setVerseIndices(newVerseIndices);
-        setShowResetAllFieldsPrompt(false);
     }, []);
 
     const cycleVerse = useCallback((categoryId: string) => {
         if (!religion) return;
-        // Get the number of cached verses for this category, default to 1 to avoid infinite loops
         const verseCount = (versesCache[religion] && versesCache[religion][categoryId]?.length) || 1;
         setVerseIndices(prev => ({
             ...prev,
@@ -488,168 +123,35 @@ export default function BiblicalLifeDashboard() {
         }));
     }, [religion]);
 
-    const updateField = useCallback((categoryId: string, field: string, value: string) => {
-        setCategoryData(prev => ({
-            ...prev,
-            [categoryId]: { ...prev[categoryId], [field]: value }
-        }));
-    }, []);
-
-    const addTimestamp = useCallback((categoryId: string, field: string) => {
-        const data = categoryData[categoryId] || {};
-        const current = data[field] || '';
-        const timestamp = new Date().toLocaleString();
-        const updated = current + `\n\n--- ${timestamp} ---\n`;
-        updateField(categoryId, field, updated);
-    }, [categoryData, updateField]);
-
-    const processQuickAdd = useCallback(() => {
-        if (!quickAdd.trim()) {
-            alert('Please enter something!');
-            return;
+    const handleAddToJournal = useCallback((actionText: string, journalEntry: string) => {
+        addEntry(`[ACTION] ${actionText}\n${journalEntry}`, 'actions');
+        const actionItem = actions.find(a => a.text === actionText);
+        if (actionItem) {
+            toggleAction(actionItem.id);
         }
-        setQuickResult(`✓ Added: ${quickAdd}`);
-        setQuickAdd('');
-        setTimeout(() => setQuickResult(''), 3000);
-    }, [quickAdd]);
+    }, [addEntry, toggleAction, actions]);
 
-    interface JournalEntry {
-        category: string;
-        text: string;
-        color: string;
-        content?: string;
-    }
+    const handleQuickAddSubmit = useCallback((type: 'todo' | 'action' | 'journal') => {
+        if (!quickAddInput.trim()) return;
 
-    const getAllJournalEntries = useCallback((): JournalEntry[] => {
-        const entries: JournalEntry[] = [];
-        categories.forEach(cat => {
-            const journalField = `${cat.id}_journal`;
-            const data = categoryData[cat.id] || {};
-            const journal = data[journalField];
-            if (journal) {
-                const lines: string[] = journal.split('\n');
-                let currentEntry: JournalEntry | null = null;
-                lines.forEach((line: string) => {
-                    if (line.includes('---') && line.includes(':')) {
-                        if (currentEntry) {
-                            entries.push(currentEntry);
-                        }
-                        currentEntry = { category: cat.name, text: line, color: cat.color, content: '' };
-                    } else if (line.trim() && currentEntry) {
-                        currentEntry.content += (currentEntry.content ? '\n' : '') + line;
-                    }
-                });
-                if (currentEntry) {
-                    entries.push(currentEntry);
-                }
-            }
-        });
-        return entries.sort((a, b) => {
-            const dateA = a.text.match(/(\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{1,2}:\d{1,2} (?:AM|PM))/);
-            const dateB = b.text.match(/(\d{1,2}\/\d{1,2}\/\d{4}, \d{1,2}:\d{1,2}:\d{1,2} (?:AM|PM))/);
-            if (dateA && dateB) return new Date(dateB[0]).getTime() - new Date(dateA[0]).getTime();
-            return 0;
-        });
-    }, [categoryData]);
+        if (type === 'todo') {
+            addTodo(quickAddInput);
+        } else if (type === 'action') {
+            addAction(quickAddInput);
+        } else if (type === 'journal') {
+            addEntry(quickAddInput, 'general');
+        }
 
-    interface ActionItem {
-        category: string;
-        field: string;
-        text: string;
-        color: string;
-    }
+        setQuickAddInput('');
+        setAddToDropdownOpen(false);
+    }, [quickAddInput, addTodo, addAction, addEntry]);
 
-    const getAllActions = useCallback((): ActionItem[] => {
-        const actions: ActionItem[] = [];
-        categories.forEach(cat => {
-            const data = categoryData[cat.id] || {};
-            Object.keys(data).forEach(key => {
-                if (key.includes('action') || key.includes('goal')) {
-                    const value = data[key];
-                    if (value && value.trim()) {
-                        actions.push({ category: cat.name, field: key, text: value, color: cat.color });
-                    }
-                }
-            });
-        });
-        return actions;
-    }, [categoryData]);
-
-    const Modal: FC<{ children: React.ReactNode; open: boolean; onClose: () => void; size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl' }> = ({ children, open, size = 'md' }) => {
-        if (!open) return null;
-        const sizeMap = {
-            sm: 'max-w-sm',
-            md: 'max-w-md',
-            lg: 'max-w-lg',
-            xl: 'max-w-xl',
-            '2xl': 'max-w-2xl',
-            '4xl': 'max-w-4xl',
-        };
-
-        return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 transition-opacity">
-                <div style={{
-                    backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                    borderRadius: '1rem',
-                    overflow: 'hidden'
-                }} className={`shadow-2xl w-full ${sizeMap[size]} flex flex-col`}>
-                    {children}
-                </div>
-            </div>
-        );
-    };
-
-    const [customReligion, setCustomReligion] = useState('');
-
-    const ReligionPopup = () => (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div style={{
-                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                borderRadius: '1rem',
-                overflow: 'hidden'
-            }} className="max-w-md w-full text-center p-8 shadow-2xl">
-                <h2 style={{ color: isDarkMode ? '#ffffff' : '#111827' }} className="text-3xl font-bold mb-3">Choose Your Path</h2>
-                <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="mb-8">Please select a religious focus to personalize your verses and experience.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                    <button onClick={() => handleReligionSelect('christianity')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Christianity</button>
-                    <button onClick={() => handleReligionSelect('islam')} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Islam</button>
-                    <button onClick={() => handleReligionSelect('judaism')} className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Judaism</button>
-                    <button onClick={() => handleReligionSelect('buddhism')} className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Buddhism</button>
-                    <button onClick={() => handleReligionSelect('hinduism')} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Hinduism</button>
-                    <button onClick={() => handleReligionSelect('Atheism')} className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg transition transform hover:scale-105">Atheism</button>
-                </div>
-                <div className="border-t pt-6" style={{ borderColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
-                    <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="text-sm mb-3">Or specify your own spiritual tradition:</p>
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            value={customReligion}
-                            onChange={(e) => setCustomReligion(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && customReligion.trim() && handleReligionSelect(customReligion)}
-                            placeholder="e.g., Zoroastrianism, Wicca..."
-                            autoFocus
-                            style={{
-                                backgroundColor: isDarkMode ? '#374151' : '#f9fafb',
-                                borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
-                                color: isDarkMode ? '#f3f4f6' : '#111827'
-                            }}
-                            className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button
-                            onClick={() => customReligion.trim() && handleReligionSelect(customReligion)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition"
-                        >
-                            Add
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-
-    if (showReligionPopup) {
-        return <ReligionPopup />;
-    }
+    const handleCustomReligion = useCallback(() => {
+        if (!customReligionInput.trim()) return;
+        handleReligionSelect(customReligionInput as Religion);
+        setCustomReligionInput('');
+        setShowCustomReligionForm(false);
+    }, [customReligionInput]);
 
     return (
         <div className={`min-h-screen ${isDarkMode ? 'dark' : ''}`} style={{
@@ -667,12 +169,18 @@ export default function BiblicalLifeDashboard() {
                     </div>
                 </div>
             )}
+
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Header */}
                 <header className="mb-10">
                     <div className="flex justify-between items-start mb-6">
                         <div className="text-center flex-1">
-                            <h1 style={{ color: isDarkMode ? '#ffffff' : '#111827' }} className="text-4xl font-bold tracking-tight mb-2">Faithful Life Dashboard</h1>
-                            <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="text-lg">A sacred space to align your daily life with your spiritual values.</p>
+                            <h1 style={{ color: isDarkMode ? '#ffffff' : '#111827' }} className="text-4xl font-bold tracking-tight mb-2">
+                                Faithful Life Dashboard
+                            </h1>
+                            <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="text-lg">
+                                A sacred space to align your daily life with your spiritual values.
+                            </p>
                         </div>
                         <button
                             onClick={toggleTheme}
@@ -691,220 +199,251 @@ export default function BiblicalLifeDashboard() {
                     </div>
                 </header>
 
+                {/* Top Tools */}
+                <TopTools isDarkMode={isDarkMode} />
+
+                {/* Quick Add Section - Search Bar */}
                 <div style={{
                     backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
                     borderColor: isDarkMode ? '#374151' : '#e5e7eb'
-                }} className="rounded-2xl shadow-sm border p-5 mb-8">
-                    <div className="flex gap-3 items-center">
+                }} className="rounded-2xl shadow-sm border p-5 mb-4">
+                    <div className="flex gap-2">
                         <input
                             type="text"
-                            value={quickAdd}
-                            onChange={(e) => setQuickAdd(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && processQuickAdd()}
-                            placeholder="Quick add an action, goal, or journal entry..."
+                            value={quickAddInput}
+                            onChange={(e) => setQuickAddInput(e.target.value)}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter' && addToDropdownOpen) {
+                                    // Submit to the first option (Todo)
+                                    handleQuickAddSubmit('todo');
+                                }
+                            }}
+                            placeholder="What's on your mind today?"
                             style={{
                                 backgroundColor: isDarkMode ? '#374151' : '#ffffff',
                                 borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
                                 color: isDarkMode ? '#f3f4f6' : '#111827'
                             }}
-                            className="flex-1 p-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                            className="flex-1 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm"
                         />
+                        <div className="relative">
+                            <button
+                                onClick={() => setAddToDropdownOpen(!addToDropdownOpen)}
+                                style={{
+                                    backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
+                                    color: isDarkMode ? '#f3f4f6' : '#111827'
+                                }}
+                                className="px-4 py-3 rounded-lg font-semibold transition hover:opacity-80 flex items-center gap-2 whitespace-nowrap"
+                            >
+                                Add to...
+                                <ChevronDown size={18} />
+                            </button>
+
+                            {/* Dropdown Menu */}
+                            {addToDropdownOpen && (
+                                <div
+                                    style={{
+                                        backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                                        borderColor: isDarkMode ? '#374151' : '#e5e7eb'
+                                    }}
+                                    className="absolute right-0 top-full mt-2 border rounded-lg shadow-lg z-10 min-w-max"
+                                >
+                                    <button
+                                        onClick={() => handleQuickAddSubmit('todo')}
+                                        style={{
+                                            color: isDarkMode ? '#f3f4f6' : '#111827',
+                                            backgroundColor: isDarkMode ? 'transparent' : 'transparent'
+                                        }}
+                                        className="block w-full text-left px-4 py-2 hover:bg-blue-500 hover:text-white transition first:rounded-t-lg"
+                                    >
+                                        📋 To-Do
+                                    </button>
+                                    <button
+                                        onClick={() => handleQuickAddSubmit('action')}
+                                        style={{
+                                            color: isDarkMode ? '#f3f4f6' : '#111827'
+                                        }}
+                                        className="block w-full text-left px-4 py-2 hover:bg-green-500 hover:text-white transition"
+                                    >
+                                        ✓ Action
+                                    </button>
+                                    <button
+                                        onClick={() => handleQuickAddSubmit('journal')}
+                                        style={{
+                                            color: isDarkMode ? '#f3f4f6' : '#111827'
+                                        }}
+                                        className="block w-full text-left px-4 py-2 hover:bg-amber-500 hover:text-white transition last:rounded-b-lg"
+                                    >
+                                        📖 Journal
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* View Buttons Section */}
+                <div style={{
+                    backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                    borderColor: isDarkMode ? '#374151' : '#e5e7eb'
+                }} className="rounded-2xl shadow-sm border p-5 mb-8">
+                    <div className="flex flex-wrap gap-2">
                         <button
-                            onClick={processQuickAdd}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold text-sm transition"
+                            onClick={() => setShowTodoList(true)}
+                            style={{
+                                backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
+                                color: isDarkMode ? '#f3f4f6' : '#111827'
+                            }}
+                            className="px-6 py-3 rounded-lg font-semibold transition hover:opacity-80"
                         >
-                            Add
+                            📋 To-Do List ({todos.filter(t => !t.completed).length})
+                        </button>
+                        <button
+                            onClick={() => setShowActions(true)}
+                            style={{
+                                backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
+                                color: isDarkMode ? '#f3f4f6' : '#111827'
+                            }}
+                            className="px-6 py-3 rounded-lg font-semibold transition hover:opacity-80"
+                        >
+                            ✓ Actions ({actions.length})
+                        </button>
+                        <button
+                            onClick={() => setShowJourney(true)}
+                            style={{
+                                backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
+                                color: isDarkMode ? '#f3f4f6' : '#111827'
+                            }}
+                            className="px-6 py-3 rounded-lg font-semibold transition hover:opacity-80"
+                        >
+                            📖 My Journey ({entries.length})
                         </button>
                     </div>
-                    {quickResult && (
-                        <div style={{
-                            backgroundColor: isDarkMode ? 'rgba(6, 78, 59, 0.3)' : '#dcfce7',
-                            color: isDarkMode ? '#86efac' : '#166534'
-                        }} className="mt-3 p-3 rounded-lg text-sm font-medium">
-                            {quickResult}
-                        </div>
-                    )}
                 </div>
 
-                <div className="flex flex-wrap justify-center gap-4 mb-10">
-                    <button
-                        onClick={() => setShowAllJournals(true)}
-                        style={{
-                            backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                            borderColor: isDarkMode ? '#374151' : '#e5e7eb',
-                            color: isDarkMode ? '#f3f4f6' : '#111827'
-                        }}
-                        className="flex items-center gap-2 border px-5 py-2.5 rounded-lg text-sm font-semibold transition hover:opacity-80"
-                    >
-                        <Book size={18} /> All Journals
-                    </button>
-                    <button
-                        onClick={() => setShowCrossActions(true)}
-                        style={{
-                            backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
-                            borderColor: isDarkMode ? '#374151' : '#e5e7eb',
-                            color: isDarkMode ? '#f3f4f6' : '#111827'
-                        }}
-                        className="flex items-center gap-2 border px-5 py-2.5 rounded-lg text-sm font-semibold transition hover:opacity-80"
-                    >
-                        <Flag size={18} /> All Actions
-                    </button>
-                </div>
-
+                {/* Category Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
-                    {categories.map(category => (
-                        <div key={category.id}>
-                            <CategoryCard
-                                category={category}
-                                data={categoryData[category.id] || {}}
-                                religion={religion}
-                                verseIndices={verseIndices}
-                                cycleVerse={cycleVerse}
-                                updateField={updateField}
-                                addTimestamp={addTimestamp}
-                                setShowConstitution={setShowConstitution}
-                                setShowResetReligionPrompt={setShowResetReligionPrompt}
-                                showResetReligionPrompt={showResetReligionPrompt}
-                                resetReligion={resetReligion}
-                                isDarkMode={isDarkMode}
-                                versesRefreshKey={versesRefreshKey}
-                            />
-                        </div>
-                    ))}
+                    <CategoryCardContainer
+                        religion={religion}
+                        verseIndices={verseIndices}
+                        cycleVerse={cycleVerse}
+                        isDarkMode={isDarkMode}
+                        versesRefreshKey={versesRefreshKey}
+                    />
                 </div>
 
-                <Modal open={showConstitution} onClose={() => setShowConstitution(false)} size="2xl">
-                    <div style={{
-                        backgroundColor: isDarkMode ? 'rgba(79, 70, 229, 0.1)' : '#f0f4ff',
-                        borderBottomColor: isDarkMode ? '#4f46e5' : '#dbeafe'
-                    }} className="p-5 flex justify-between items-center border-b">
-                        <h2 style={{ color: isDarkMode ? '#ffffff' : '#111827' }} className="text-lg font-bold flex items-center gap-3"><Flag size={22} className="text-indigo-600" /> U.S. Constitution</h2>
-                        <button onClick={() => setShowConstitution(false)} style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="hover:text-gray-800 text-2xl transition">&times;</button>
-                    </div>
-                    <div style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="p-6 text-sm">
-                        <p className="mb-4">View the full Constitution of the United States on the official government archive.</p>
-                        <a href="https://constitution.congress.gov" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
-                            constitution.congress.gov
-                        </a>
-                    </div>
-                </Modal>
+                {/* Modals */}
+                <QuickAddModal
+                    open={showQuickAdd}
+                    isDarkMode={isDarkMode}
+                    onClose={() => setShowQuickAdd(false)}
+                    onAddTodo={addTodo}
+                    onAddAction={addAction}
+                    onAddJournal={addEntry}
+                />
 
-                <Modal open={showAllJournals} onClose={() => setShowAllJournals(false)} size="4xl">
-                    <div style={{
-                        backgroundColor: isDarkMode ? 'rgba(92, 51, 0, 0.15)' : '#fffbeb',
-                        borderBottomColor: isDarkMode ? '#b45309' : '#fcd34d'
-                    }} className="p-5 flex justify-between items-center border-b">
-                        <h2 style={{ color: isDarkMode ? '#ffffff' : '#111827' }} className="text-lg font-bold flex items-center gap-3"><Book size={22} className="text-amber-600" /> All Journal Entries</h2>
-                        <button onClick={() => setShowAllJournals(false)} style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="hover:text-gray-800 text-2xl transition">&times;</button>
-                    </div>
-                    <div style={{ backgroundColor: isDarkMode ? '#111827' : '#ffffff' }} className="p-6 overflow-y-auto max-h-[70vh]">
-                        {getAllJournalEntries().length === 0 ? (
-                            <p style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="italic">No journal entries yet. Start journaling in any category!</p>
-                        ) : (
-                            <div className="space-y-4">
-                                {getAllJournalEntries().map((entry, idx) => (
-                                    <div key={idx} style={{ borderLeftColor: isDarkMode ? '#4b5563' : '#d1d5db' }} className="border-l-4 pl-4 py-3">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <span className={`${entry.color} text-white px-3 py-1 rounded-full text-xs font-bold`}>
-                                                {entry.category}
-                                            </span>
-                                            <span style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="text-xs">{entry.text.replace(/---/g, '').trim()}</span>
-                                        </div>
-                                        {entry.content && <p style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm whitespace-pre-wrap">{entry.content}</p>}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </Modal>
+                <TodoListModal
+                    open={showTodoList}
+                    isDarkMode={isDarkMode}
+                    todos={todos}
+                    onClose={() => setShowTodoList(false)}
+                    onToggle={toggleTodo}
+                    onDelete={deleteTodo}
+                    onClearCompleted={clearCompletedTodos}
+                />
 
-                <Modal open={showCrossActions} onClose={() => setShowCrossActions(false)} size="4xl">
-                    <div style={{
-                        backgroundColor: isDarkMode ? 'rgba(30, 58, 138, 0.15)' : '#eff6ff',
-                        borderBottomColor: isDarkMode ? '#1e3a8a' : '#93c5fd'
-                    }} className="p-5 flex justify-between items-center border-b">
-                        <h2 style={{ color: isDarkMode ? '#ffffff' : '#111827' }} className="text-lg font-bold flex items-center gap-3"><Flag size={22} className="text-blue-600" /> All Goals & Actions</h2>
-                        <button onClick={() => setShowCrossActions(false)} style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="hover:text-gray-800 text-2xl transition">&times;</button>
-                    </div>
-                    <div style={{ backgroundColor: isDarkMode ? '#111827' : '#ffffff' }} className="p-6 overflow-y-auto max-h-[70vh]">
-                        {getAllActions().length === 0 ? (
-                            <p style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="italic">No goals or actions defined. Add some in the cards above.</p>
-                        ) : (
-                            <div className="space-y-3">
-                                {getAllActions().map((action, idx) => (
-                                    <div key={idx} style={{
-                                        backgroundColor: isDarkMode ? '#1f2937' : '#f9fafb',
-                                        borderColor: isDarkMode ? '#374151' : '#e5e7eb'
-                                    }} className="flex items-start gap-3 p-4 rounded-lg border transition">
-                                        <span className={`${action.color} text-white px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap`}>
-                                            {action.category}
-                                        </span>
-                                        <div className="flex-1 min-w-0">
-                                            <span style={{ color: isDarkMode ? '#9ca3af' : '#4b5563' }} className="text-xs font-semibold block mb-1">
-                                                {action.field.replace(/_/g, ' ').toUpperCase()}
-                                            </span>
-                                            <p style={{ color: isDarkMode ? '#d1d5db' : '#111827' }} className="text-sm wrap-break-word">{action.text}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </Modal>
+                <ActionsModal
+                    open={showActions}
+                    isDarkMode={isDarkMode}
+                    actions={actions}
+                    onClose={() => setShowActions(false)}
+                    onToggle={toggleAction}
+                    onDelete={deleteAction}
+                    onAddToJournal={handleAddToJournal}
+                />
 
-                <Modal open={showResetReligionPrompt} onClose={() => setShowResetReligionPrompt(false)} size="sm">
-                    <div className="p-6 text-center">
-                        <h2 style={{ color: isDarkMode ? '#ffffff' : '#111827' }} className="text-xl font-bold mb-2">Change Religion?</h2>
-                        <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="text-sm mb-6">You will be asked to select a new religious focus and all verse indices will be reset.</p>
-                        <div className="flex justify-center gap-3">
-                            <button onClick={() => setShowResetReligionPrompt(false)} style={{
-                                backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
-                                color: isDarkMode ? '#f3f4f6' : '#111827'
-                            }} className="font-semibold py-2 px-5 rounded-lg transition hover:opacity-80">Cancel</button>
-                            <button onClick={resetReligion} className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-lg transition">Change</button>
-                        </div>
-                    </div>
-                </Modal>
+                <JourneyView
+                    open={showJourney}
+                    isDarkMode={isDarkMode}
+                    entries={entries}
+                    onClose={() => setShowJourney(false)}
+                />
 
-                <Modal open={showResetAllFieldsPrompt} onClose={() => setShowResetAllFieldsPrompt(false)} size="sm">
-                    <div className="p-6 text-center">
-                        <h2 style={{ color: isDarkMode ? '#ffffff' : '#111827' }} className="text-xl font-bold mb-2">Reset All Data?</h2>
-                        <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="text-sm mb-6">This will permanently delete all your entered data. This action cannot be undone.</p>
-                        <div className="flex justify-center gap-3">
-                            <button onClick={() => setShowResetAllFieldsPrompt(false)} style={{
-                                backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
-                                color: isDarkMode ? '#f3f4f6' : '#111827'
-                            }} className="font-semibold py-2 px-5 rounded-lg transition hover:opacity-80">Cancel</button>
-                            <button onClick={resetAllFields} className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-lg transition">Reset All</button>
-                        </div>
-                    </div>
-                </Modal>
-
+                {/* Footer */}
                 <footer style={{ borderTopColor: isDarkMode ? '#374151' : '#e5e7eb' }} className="mt-12 pt-8 border-t">
                     <div className="flex flex-col items-center gap-6">
-                        <div className="flex flex-wrap justify-center gap-2">
-                            {['christianity', 'islam', 'judaism', 'buddhism', 'hinduism', 'Atheism'].map((r) => (
-                                <button
-                                    key={r}
-                                    onClick={() => handleReligionSelect(r as Religion)}
-                                    className={`px-4 py-2 rounded-full text-sm font-medium transition ${religion === r
-                                            ? 'bg-blue-600 text-white shadow-md'
-                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                                        }`}
-                                >
-                                    {r.charAt(0).toUpperCase() + r.slice(1)}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="flex justify-center items-center gap-6">
-                            <button onClick={() => setShowResetAllFieldsPrompt(true)} style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="text-sm font-medium transition hover:text-red-600">
-                                Reset All Data
-                            </button>
-                            <div style={{ backgroundColor: isDarkMode ? '#4b5563' : '#d1d5db' }} className="w-px h-4"></div>
-                            <button onClick={() => setShowResetReligionPrompt(true)} style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="text-sm font-medium transition hover:text-red-600">
-                                Custom Religion
-                            </button>
-                        </div>
+                        {!showCustomReligionForm ? (
+                            <>
+                                <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="text-sm font-semibold">Select Your Religious Focus</p>
+                                <div className="flex flex-wrap justify-center gap-2">
+                                    {['christianity', 'islam', 'judaism', 'buddhism', 'hinduism', 'Atheism'].map((r) => (
+                                        <button
+                                            key={r}
+                                            onClick={() => handleReligionSelect(r as Religion)}
+                                            className={`px-4 py-2 rounded-full text-sm font-medium transition ${religion === r
+                                                ? 'bg-blue-600 text-white shadow-md'
+                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                                                }`}
+                                        >
+                                            {r.charAt(0).toUpperCase() + r.slice(1)}
+                                        </button>
+                                    ))}
+                                    <button
+                                        onClick={() => setShowCustomReligionForm(true)}
+                                        style={{
+                                            backgroundColor: isDarkMode ? '#374151' : '#f0f4ff',
+                                            color: isDarkMode ? '#f3f4f6' : '#1e40af',
+                                            borderColor: isDarkMode ? '#4b5563' : '#93c5fd'
+                                        }}
+                                        className="px-4 py-2 rounded-full text-sm font-medium transition border hover:opacity-80"
+                                    >
+                                        ✨ Other
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="w-full max-w-sm">
+                                <p style={{ color: isDarkMode ? '#d1d5db' : '#4b5563' }} className="text-sm font-semibold mb-3 text-center">Enter Your Spiritual Tradition</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={customReligionInput}
+                                        onChange={(e) => setCustomReligionInput(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleCustomReligion()}
+                                        placeholder="e.g., Zoroastrianism, Wicca..."
+                                        autoFocus
+                                        style={{
+                                            backgroundColor: isDarkMode ? '#374151' : '#f9fafb',
+                                            borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
+                                            color: isDarkMode ? '#f3f4f6' : '#111827'
+                                        }}
+                                        className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div className="flex gap-2 mt-3">
+                                    <button
+                                        onClick={() => {
+                                            setShowCustomReligionForm(false);
+                                            setCustomReligionInput('');
+                                        }}
+                                        style={{
+                                            backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
+                                            color: isDarkMode ? '#f3f4f6' : '#111827'
+                                        }}
+                                        className="flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition hover:opacity-80"
+                                    >
+                                        Back
+                                    </button>
+                                    <button
+                                        onClick={handleCustomReligion}
+                                        disabled={!customReligionInput.trim()}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2 px-3 rounded-lg text-sm font-semibold transition"
+                                    >
+                                        Confirm
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </footer>
             </div>
