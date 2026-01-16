@@ -13,6 +13,18 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
     const [copyFeedback, setCopyFeedback] = useState('');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
+    const parseDate = (dateString: string) => {
+        const [year, month, day] = dateString.split('-').map(Number);
+        return new Date(year, month - 1, day);
+    };
+
+    const formatDate = (date: Date) => {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+
+    const today = formatDate(new Date());
+    const isToday = selectedDate === today;
+
     const handleCopyEmail = async () => {
         try {
             await navigator.clipboard.writeText(email);
@@ -46,9 +58,9 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
     };
 
     const renderCalendar = () => {
-        const date = new Date(selectedDate);
-        const daysInMonth = getDaysInMonth(date);
-        const firstDay = getFirstDayOfMonth(date);
+        const currentDate = parseDate(selectedDate);
+        const daysInMonth = getDaysInMonth(currentDate);
+        const firstDay = getFirstDayOfMonth(currentDate);
         const days = [];
 
         // Empty cells for days before month starts
@@ -58,23 +70,26 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
 
         // Days of month
         for (let i = 1; i <= daysInMonth; i++) {
-            const isSelected = new Date(selectedDate).getDate() === i &&
-                new Date(selectedDate).getMonth() === date.getMonth() &&
-                new Date(selectedDate).getFullYear() === date.getFullYear();
+            const dayDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
+            const dayDateString = formatDate(dayDate);
+            const isSelected = dayDateString === selectedDate;
+            const isDayToday = dayDateString === today;
 
             days.push(
                 <button
                     key={i}
                     onClick={() => {
-                        const newDate = new Date(date.getFullYear(), date.getMonth(), i);
-                        setSelectedDate(newDate.toISOString().split('T')[0]);
+                        setSelectedDate(dayDateString);
                     }}
                     className={`p-2 rounded text-sm font-semibold transition ${isSelected
-                            ? 'bg-blue-600 text-white'
-                            : isDarkMode
-                                ? 'hover:bg-gray-700'
-                                : 'hover:bg-gray-200'
-                        }`}
+                        ? 'bg-blue-600 text-white'
+                        : isDarkMode
+                            ? 'hover:bg-gray-700'
+                            : 'hover:bg-gray-200'
+                        } ${isDayToday && !isSelected ? (isDarkMode ? 'border-2 border-blue-400' : 'border-2 border-blue-500') : ''}`}
+                    style={isDayToday && !isSelected ? {
+                        borderColor: isDarkMode ? '#60a5fa' : '#3b82f6'
+                    } : undefined}
                 >
                     {i}
                 </button>
@@ -99,10 +114,10 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
                         key={id}
                         onClick={() => setActiveTab(id as any)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition ${activeTab === id
-                                ? 'bg-blue-600 text-white'
-                                : isDarkMode
-                                    ? 'text-gray-300 hover:bg-gray-700'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                            ? 'bg-blue-600 text-white'
+                            : isDarkMode
+                                ? 'text-gray-300 hover:bg-gray-700'
+                                : 'text-gray-600 hover:bg-gray-100'
                             }`}
                     >
                         <Icon size={18} />
