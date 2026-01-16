@@ -197,13 +197,24 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
                 {activeTab === 'calendar' && (
                     <div>
                         <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-3">
-                            Selected: {new Date(selectedDate).toLocaleDateString('en-US', {
+                            Selected: {parseDate(selectedDate).toLocaleDateString('en-US', {
                                 weekday: 'long',
                                 year: 'numeric',
                                 month: 'long',
                                 day: 'numeric'
                             })}
                         </label>
+                        {!isToday && (
+                            <button
+                                onClick={() => setSelectedDate(today)}
+                                className={`w-full mb-4 py-2 px-3 rounded font-semibold text-sm transition ${isDarkMode
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                                    }`}
+                            >
+                                Today
+                            </button>
+                        )}
                         <div className="grid grid-cols-7 gap-1">
                             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                                 <div
