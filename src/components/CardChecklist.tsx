@@ -1,4 +1,4 @@
-import { useState, useCallback, FC } from 'react';
+import { useState, type FC } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Plus, Pencil, Trash2, ExternalLink, Phone, Check } from 'lucide-react';
 import {

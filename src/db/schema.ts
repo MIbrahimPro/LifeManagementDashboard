@@ -23,6 +23,7 @@ export interface TodoRecord {
     completed: boolean;
     date: string; // YYYY-MM-DD
     createdAt: string;
+    timestamp?: string;
 }
 
 export interface ActionRecord {
@@ -31,6 +32,7 @@ export interface ActionRecord {
     completed: boolean;
     date: string;
     createdAt: string;
+    timestamp?: string;
 }
 
 export interface JournalEntryRecord {
