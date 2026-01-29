@@ -14,6 +14,10 @@ import type {
   DailyTrackerLogRecord,
   HobbyLinkRecord,
   GoalRecord,
+  CardSectionRecord,
+  SectionEntryRecord,
+  DailyGoalsRecord,
+  ContactWebsiteRecord,
 } from './schema';
 
 const DEFAULT_DATE = () => new Date().toISOString().slice(0, 10);
@@ -126,16 +130,26 @@ export async function addJournalEntry(text: string, category: string, date: stri
 }
 
 // ----- Daily snapshots (end of day journal) -----
-export async function getDailySnapshot(date: string): Promise<DailySnapshotRecord | undefined> {
-  return db.dailySnapshots.where('date').equals(date).first();
+export async function getDailySnapshot(date: string, categoryId?: string): Promise<DailySnapshotRecord | undefined> {
+  if (categoryId) {
+    return db.dailySnapshots.where('[date+categoryId]').equals([date, categoryId]).first();
+  }
+  return db.dailySnapshots.where('date').equals(date).filter((s) => !s.categoryId).first();
 }
 
 export async function getDailySnapshots(): Promise<DailySnapshotRecord[]> {
   return db.dailySnapshots.orderBy('date').reverse().toArray();
 }
 
-export async function saveDailySnapshot(snapshot: Omit<DailySnapshotRecord, 'id' | 'createdAt'>): Promise<void> {
-  const id = `snap_${snapshot.date}`;
+export async function getDailySnapshotsByCategory(categoryId: string): Promise<DailySnapshotRecord[]> {
+  const list = await db.dailySnapshots.where('categoryId').equals(categoryId).sortBy('date');
+  return list.reverse();
+}
+
+export async function saveDailySnapshot(
+  snapshot: Omit<DailySnapshotRecord, 'id' | 'createdAt'> & { categoryId?: string }
+): Promise<void> {
+  const id = snapshot.categoryId ? `snap_${snapshot.date}_${snapshot.categoryId}` : `snap_${snapshot.date}`;
   await db.dailySnapshots.put({
     ...snapshot,
     id,
@@ -250,6 +264,97 @@ export async function deleteGoal(id: string): Promise<void> {
   await db.goals.delete(id);
 }
 
+// ----- Card sections (Goals, Vitamins, etc.) -----
+export async function getCardSections(categoryId: string): Promise<CardSectionRecord[]> {
+  return db.cardSections.where('categoryId').equals(categoryId).sortBy('order');
+}
+
+export async function addCardSection(
+  categoryId: string,
+  name: string,
+  kind: CardSectionRecord['kind'] = 'custom',
+  removable = true
+): Promise<CardSectionRecord> {
+  const sections = await getCardSections(categoryId);
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const rec: CardSectionRecord = { id, categoryId, name, order: sections.length, removable, kind };
+  await db.cardSections.add(rec);
+  return rec;
+}
+
+export async function updateCardSection(id: string, updates: Partial<CardSectionRecord>): Promise<void> {
+  await db.cardSections.update(id, updates);
+}
+
+export async function deleteCardSection(id: string): Promise<void> {
+  const entries = await db.sectionEntries.where('sectionId').equals(id).toArray();
+  for (const e of entries) await db.sectionEntries.delete(e.id);
+  await db.cardSections.delete(id);
+}
+
+// ----- Section entries (e.g. Running under Exercise) -----
+export async function getSectionEntries(sectionId: string): Promise<SectionEntryRecord[]> {
+  return db.sectionEntries.where('sectionId').equals(sectionId).sortBy('order');
+}
+
+export async function addSectionEntry(
+  sectionId: string,
+  name: string,
+  fieldType: SectionEntryRecord['fieldType'],
+  options?: string[]
+): Promise<SectionEntryRecord> {
+  const entries = await getSectionEntries(sectionId);
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const rec: SectionEntryRecord = { id, sectionId, name, fieldType, options, order: entries.length };
+  await db.sectionEntries.add(rec);
+  return rec;
+}
+
+export async function updateSectionEntry(id: string, updates: Partial<SectionEntryRecord>): Promise<void> {
+  await db.sectionEntries.update(id, updates);
+}
+
+export async function deleteSectionEntry(id: string): Promise<void> {
+  await db.sectionEntries.delete(id);
+}
+
+// ----- Daily goals per category (array of {text, type}) -----
+export async function getDailyGoals(categoryId: string, date: string): Promise<{ text: string; type: string }[]> {
+  const id = `${categoryId}_${date}`;
+  const row = await db.dailyGoals.get(id);
+  return row?.goals ?? [];
+}
+
+export async function setDailyGoals(categoryId: string, date: string, goals: { text: string; type: string }[]): Promise<void> {
+  const id = `${categoryId}_${date}`;
+  await db.dailyGoals.put({ id, categoryId, date, goals });
+}
+
+// ----- Contacts/Websites (permanent, not reset) -----
+export async function getContactsWebsites(categoryId: string): Promise<ContactWebsiteRecord[]> {
+  return db.contactsWebsites.where('categoryId').equals(categoryId).sortBy('order');
+}
+
+export async function addContactWebsite(
+  categoryId: string,
+  type: 'website' | 'contact',
+  linkOrPhone: string
+): Promise<ContactWebsiteRecord> {
+  const list = await getContactsWebsites(categoryId);
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const rec: ContactWebsiteRecord = { id, categoryId, type, linkOrPhone, order: list.length };
+  await db.contactsWebsites.add(rec);
+  return rec;
+}
+
+export async function updateContactWebsite(id: string, updates: Partial<ContactWebsiteRecord>): Promise<void> {
+  await db.contactsWebsites.update(id, updates);
+}
+
+export async function deleteContactWebsite(id: string): Promise<void> {
+  await db.contactsWebsites.delete(id);
+}
+
 // ----- Category data (blob per category - replaces localStorage category_${id}) -----
 export async function getCategoryData(categoryId: string): Promise<Record<string, unknown>> {
   const row = await db.categoryData.get(categoryId);
@@ -270,26 +375,36 @@ export async function setTextToolContent(content: string): Promise<void> {
   await db.textTool.put({ id: 'default', content, updatedAt: Date.now() });
 }
 
-// ----- End of day: snapshot to journal, remove completed todos -----
+// ----- End of day: snapshot to journal, remove completed todos (called at midnight) -----
 export async function runEndOfDay(date: string): Promise<void> {
-  const [todos, trackerLogs, goals] = await Promise.all([
+  const [todos, trackerLogs] = await Promise.all([
     db.todos.where('date').equals(date).toArray(),
     db.dailyTrackerLog.where('date').equals(date).toArray(),
-    db.goals.where('date').equals(date).toArray(),
   ]);
 
-  const templates = await db.trackerTemplates.toArray();
-  const templateMap = new Map(templates.map((t: TrackerTemplateRecord) => [t.id, t]));
+  const entryMap = new Map<string, SectionEntryRecord>();
+  try {
+    const entries = await db.sectionEntries.toArray();
+    entries.forEach((e: SectionEntryRecord) => entryMap.set(e.id, e));
+  } catch {
+    const templates = await db.trackerTemplates.toArray();
+    templates.forEach((t: TrackerTemplateRecord) => entryMap.set(t.id, { id: t.id, sectionId: '', name: t.label, fieldType: t.fieldType as SectionEntryRecord['fieldType'], order: 0 }));
+  }
 
   const todosDone = todos.filter((t: TodoRecord) => t.completed).map((t: TodoRecord) => ({ text: t.text, completed: true }));
   const todosNotDone = todos.filter((t: TodoRecord) => !t.completed).map((t: TodoRecord) => ({ text: t.text }));
 
   const trackerLog = trackerLogs.map((l: DailyTrackerLogRecord) => {
-    const t = templateMap.get(l.templateId);
-    return { label: (t as TrackerTemplateRecord | undefined)?.label ?? l.templateId, completed: l.completed, value: l.value };
+    const e = entryMap.get(l.templateId);
+    return { label: e?.name ?? l.templateId, completed: l.completed, value: l.value };
   });
 
-  const goalsLog = goals.map((g: GoalRecord) => ({ text: g.text, type: g.goalType, completed: g.completed }));
+  const categoryIds = ['physical', 'hobby', 'income', 'assets', 'family', 'oneonone', 'politics', 'spiritual'];
+  const goalsLog: { text: string; type: string; completed: boolean }[] = [];
+  for (const cid of categoryIds) {
+    const gs = await getDailyGoals(cid, date);
+    gs.forEach((g) => goalsLog.push({ text: g.text, type: g.type, completed: false }));
+  }
 
   await saveDailySnapshot({
     date,
@@ -299,6 +414,30 @@ export async function runEndOfDay(date: string): Promise<void> {
     goalsLog,
     journalExtra: [],
   });
+
+  for (const cid of categoryIds) {
+    const gs = await getDailyGoals(cid, date);
+    const sections = await getCardSections(cid);
+    const sectionIds = new Set(sections.map((s) => s.id));
+    const entries = await db.sectionEntries.where('sectionId').anyOf(Array.from(sectionIds)).toArray();
+    const entryIds = new Set(entries.map((e: SectionEntryRecord) => e.id));
+    const catTrackerLog = trackerLogs
+      .filter((l: DailyTrackerLogRecord) => entryIds.has(l.templateId))
+      .map((l: DailyTrackerLogRecord) => {
+        const e = entryMap.get(l.templateId);
+        return { label: e?.name ?? l.templateId, completed: l.completed, value: l.value };
+      });
+    const catGoalsLog = gs.map((g) => ({ text: g.text, type: g.type, completed: false }));
+    await saveDailySnapshot({
+      date,
+      categoryId: cid,
+      todosDone: [],
+      todosNotDone: [],
+      trackerLog: catTrackerLog,
+      goalsLog: catGoalsLog,
+      journalExtra: [],
+    });
+  }
 
   for (const t of todos) {
     const line = (t as TodoRecord).completed ? `[DONE] ${(t as TodoRecord).text}` : `[NOT DONE] ${(t as TodoRecord).text}`;

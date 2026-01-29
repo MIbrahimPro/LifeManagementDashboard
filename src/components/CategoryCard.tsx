@@ -1,14 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
 import type { Religion } from '../data/verses';
 import { versesCache } from '../data/verses';
-import { getCategoryData, setCategoryData } from '../db';
-import { MultiSelectDropdown } from './MultiSelectDropdown';
-import { SingleSelectDropdown } from './SingleSelectDropdown';
-import { HobbyLinks } from './HobbyLinks';
-import { DailyTracker } from './DailyTracker';
-import { goalOptions } from '../data/dropdownOptions';
+import { CardChecklist } from './CardChecklist';
 
 interface Category {
     id: string;
@@ -36,16 +31,6 @@ export const CategoryCard: FC<CategoryCardProps> = ({
 }) => {
     const Icon = category.icon;
     const [currentVerse, setCurrentVerse] = useState<string>("Loading...");
-    const [data, setData] = useState<{ [key: string]: string | string[] }>({});
-
-    // Load category data from db
-    useEffect(() => {
-        let cancelled = false;
-        getCategoryData(category.id).then((loaded) => {
-            if (!cancelled) setData(loaded as { [key: string]: string | string[] });
-        });
-        return () => { cancelled = true; };
-    }, [category.id]);
 
     // Load verse (from cache populated by dashboard; verses stored in db via verseUtils)
     useEffect(() => {
@@ -62,34 +47,6 @@ export const CategoryCard: FC<CategoryCardProps> = ({
             setCurrentVerse("Verse not available.");
         }
     }, [religion, category.id, verseIndex, versesRefreshKey]);
-
-    const updateField = useCallback((field: string, value: string | string[]) => {
-        setData(prev => {
-            const next = { ...prev, [field]: value };
-            setCategoryData(category.id, next as Record<string, unknown>);
-            return next;
-        });
-    }, [category.id]);
-
-    const addTextField = (field: string, placeholder: string) => (
-        <div>
-            <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-1">
-                {placeholder}
-            </label>
-            <textarea
-                value={data[field] as string || ''}
-                onChange={(e) => updateField(field, e.target.value)}
-                placeholder={placeholder}
-                style={{
-                    backgroundColor: isDarkMode ? '#374151' : '#ffffff',
-                    borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
-                    color: isDarkMode ? '#f3f4f6' : '#111827'
-                }}
-                className="w-full text-sm p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                rows={2}
-            />
-        </div>
-    );
 
     return (
         <div style={{
@@ -119,126 +76,9 @@ export const CategoryCard: FC<CategoryCardProps> = ({
                 {currentVerse}
             </div>
 
-            {/* Content - Specific per category */}
+            {/* Content - Checklist (Goals, Vitamins, Medication, etc. + Contacts & Websites) */}
             <div className="space-y-3 grow overflow-y-auto">
-                {/* Goals Dropdown - Single Select */}
-                <SingleSelectDropdown
-                    label="Goals"
-                    options={goalOptions}
-                    value={typeof data.goals === 'string' ? data.goals : ''}
-                    onChange={(value) => updateField('goals', value)}
-                    isDarkMode={isDarkMode}
-                />
-
-                {/* Category-specific fields */}
-                {category.id === 'physical' && (
-                    <>
-                        <DailyTracker categoryId="physical" isDarkMode={isDarkMode} title="Today's checklist (meal, vitamins, meds, exercise)" />
-                        {addTextField('doctors', 'Doctors')}
-                        {addTextField('food', 'Food - What to Eat')}
-                        {addTextField('vitamins', 'Vitamins & Supplements')}
-                        {addTextField('medications', 'Medications')}
-                        {addTextField('motion', 'Motion: Walk, Run, Yoga')}
-                        <MultiSelectDropdown
-                            label="Contacts / Websites"
-                            options={['Doctor', 'Gym', 'Pharmacy', 'Health Coach']}
-                            value={Array.isArray(data.contacts) ? data.contacts : []}
-                            onChange={(value) => updateField('contacts', value)}
-                            isDarkMode={isDarkMode}
-                        />
-                    </>
-                )}
-
-                {category.id === 'hobby' && (
-                    <>
-                        <HobbyLinks categoryId="hobby" isDarkMode={isDarkMode} title="Hobbies / Links (click to open)" />
-                        {addTextField('hobbies', 'Hobbies & Skills')}
-                        {addTextField('hobbyGoalsText', 'Goals Details')}
-                        <MultiSelectDropdown
-                            label="Contacts / Websites"
-                            options={['Community', 'Tutorial', 'Supplier', 'Mentor']}
-                            value={Array.isArray(data.hobbyContacts) ? data.hobbyContacts : []}
-                            onChange={(value) => updateField('hobbyContacts', value)}
-                            isDarkMode={isDarkMode}
-                        />
-                    </>
-                )}
-
-                {category.id === 'income' && (
-                    <>
-                        {addTextField('contacts', 'Contacts')}
-                        {addTextField('banking', 'Banking')}
-                        {addTextField('expenses', 'Expenses')}
-                        <MultiSelectDropdown
-                            label="Income Sources"
-                            options={['Salary', 'Side Business', 'Investments', 'Rental Income']}
-                            value={Array.isArray(data.incomeSources) ? data.incomeSources : []}
-                            onChange={(value) => updateField('incomeSources', value)}
-                            isDarkMode={isDarkMode}
-                        />
-                        <MultiSelectDropdown
-                            label="Contacts / Websites"
-                            options={['Bank', 'Accountant', 'Investor', 'Advisor']}
-                            value={Array.isArray(data.incomeContacts) ? data.incomeContacts : []}
-                            onChange={(value) => updateField('incomeContacts', value)}
-                            isDarkMode={isDarkMode}
-                        />
-                    </>
-                )}
-
-                {category.id === 'assets' && (
-                    <>
-                        {addTextField('liabilities', 'Liabilities')}
-                    </>
-                )}
-
-                {category.id === 'family' && (
-                    <>
-                        {addTextField('birthdays', 'Birthday List (DOB + Age)')}
-                        {addTextField('familyContacts', 'Contact Info')}
-                    </>
-                )}
-
-                {category.id === 'oneonone' && (
-                    <>
-                        {addTextField('argumentTopics', 'Identify 3 Main Topics of Argument & Fix')}
-                    </>
-                )}
-
-                {category.id === 'politics' && (
-                    <>
-                        {addTextField('federalLaws', 'Federal Laws')}
-                        {addTextField('stateLaws', 'State Laws')}
-                        {addTextField('localLaws', 'Local Laws')}
-                        <MultiSelectDropdown
-                            label="Contacts / Websites"
-                            options={['Government', 'Advocacy', 'Representative', 'Community']}
-                            value={Array.isArray(data.politicsContacts) ? data.politicsContacts : []}
-                            onChange={(value) => updateField('politicsContacts', value)}
-                            isDarkMode={isDarkMode}
-                        />
-                    </>
-                )}
-
-                {category.id === 'spiritual' && (
-                    <>
-                        <MultiSelectDropdown
-                            label="Contacts / Websites"
-                            options={['Pastor', 'Spiritual Guide', 'Church', 'Retreat Center', 'Meditation App']}
-                            value={Array.isArray(data.spiritualContacts) ? data.spiritualContacts : []}
-                            onChange={(value) => updateField('spiritualContacts', value)}
-                            isDarkMode={isDarkMode}
-                        />
-                    </>
-                )}
-
-                {/* Habit Fields (all categories) */}
-                {category.id !== 'assets' && (
-                    <>
-                        {addTextField('goodHabit', 'Gain a Good Habit')}
-                        {addTextField('badHabit', 'Lose a Bad Habit')}
-                    </>
-                )}
+                <CardChecklist categoryId={category.id} isDarkMode={isDarkMode} />
             </div>
         </div>
     );

@@ -11,7 +11,7 @@ import { TodoListModal } from '../components/TodoListModal';
 import { ActionsModal } from '../components/ActionsModal';
 import { TopTools } from '../components/TopTools';
 import { CategoryCardContainer } from '../components/CategoryCardContainer';
-import { GoalsSection } from '../components/GoalsSection';
+import { runEndOfDay as apiRunEndOfDay } from '../db';
 
 interface VerseIndices {
     [categoryId: string]: number;
@@ -33,7 +33,7 @@ export default function BiblicalLifeDashboard() {
     const todayDate = today();
 
     // Custom hooks for data management (date = today so dashboard resets per day)
-    const { todos, addTodo, toggleTodo, deleteTodo, clearCompletedTodos, runEndOfDay } = useTodoList(todayDate);
+    const { todos, addTodo, toggleTodo, deleteTodo, clearCompletedTodos } = useTodoList(todayDate);
     const { actions, addAction, toggleAction, deleteAction } = useActionsList(todayDate);
     const { entries, addEntry } = useJournal();
 
@@ -89,6 +89,25 @@ export default function BiblicalLifeDashboard() {
             }
         })();
         return () => { cancelled = true; };
+    }, []);
+
+    // Auto run end-of-day when date rolls past midnight (entries saved, completed todos removed)
+    useEffect(() => {
+        let mounted = true;
+        const checkMidnight = async () => {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const settings = await getUserSettings();
+            const last = settings?.lastEndOfDayDate;
+            if (last && last < todayStr) {
+                await apiRunEndOfDay(last);
+                if (mounted) await setUserSettings({ lastEndOfDayDate: todayStr });
+            } else if (!last) {
+                await setUserSettings({ lastEndOfDayDate: todayStr });
+            }
+        };
+        checkMidnight();
+        const interval = setInterval(checkMidnight, 60 * 1000);
+        return () => { mounted = false; clearInterval(interval); };
     }, []);
 
     const handleReligionSelect = useCallback(async (selectedReligion: Religion) => {
@@ -264,18 +283,9 @@ export default function BiblicalLifeDashboard() {
                                         style={{
                                             color: isDarkMode ? '#f3f4f6' : '#111827'
                                         }}
-                                        className="block w-full text-left px-4 py-2 hover:bg-green-500 hover:text-white transition"
+                                        className="block w-full text-left px-4 py-2 hover:bg-green-500 hover:text-white transition last:rounded-b-lg"
                                     >
                                         ✓ Action
-                                    </button>
-                                    <button
-                                        onClick={() => handleQuickAddSubmit('journal')}
-                                        style={{
-                                            color: isDarkMode ? '#f3f4f6' : '#111827'
-                                        }}
-                                        className="block w-full text-left px-4 py-2 hover:bg-amber-500 hover:text-white transition last:rounded-b-lg"
-                                    >
-                                        📖 Journal
                                     </button>
                                 </div>
                             )}
@@ -317,25 +327,9 @@ export default function BiblicalLifeDashboard() {
                             }}
                             className="px-6 py-3 rounded-lg font-semibold transition hover:opacity-80 inline-block"
                         >
-                            📖 Journal ({entries.length})
+                            📖 Journal
                         </Link>
-                        <button
-                            onClick={() => runEndOfDay()}
-                            style={{
-                                backgroundColor: isDarkMode ? '#065f46' : '#059669',
-                                color: '#fff'
-                            }}
-                            className="px-6 py-3 rounded-lg font-semibold transition hover:opacity-90"
-                            title="Save today's todos & tracker to journal, remove completed todos"
-                        >
-                            End of day
-                        </button>
                     </div>
-                </div>
-
-                {/* Goals for today */}
-                <div className="mb-8">
-                    <GoalsSection isDarkMode={isDarkMode} date={todayDate} title="Today's goals (short / medium / long)" />
                 </div>
 
                 {/* Category Cards */}

@@ -4,6 +4,7 @@ import {
 } from "react-router-dom";
 import BiblicalLifeDashboard from "./pages/bible_life_dashboard";
 import JournalPage from "./pages/JournalPage";
+import JournalCategoryPage from "./pages/JournalCategoryPage";
 
 const router = createBrowserRouter([
     {
@@ -13,6 +14,10 @@ const router = createBrowserRouter([
     {
         path: "/journal",
         element: <JournalPage />,
+    },
+    {
+        path: "/journal/:categoryId",
+        element: <JournalCategoryPage />,
     },
     {
         path: "*",

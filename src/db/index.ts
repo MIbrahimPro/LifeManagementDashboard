@@ -11,6 +11,10 @@ export type {
   HobbyLinkRecord,
   GoalRecord,
   CategoryDataRecord,
+  CardSectionRecord,
+  SectionEntryRecord,
+  DailyGoalsRecord,
+  ContactWebsiteRecord,
 } from './schema';
 export { seedIfNeeded, generateIdPublic } from './seed';
 export * from './api';

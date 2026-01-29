@@ -6,6 +6,7 @@ export interface UserSettingsRecord {
   religion: string;
   isDarkMode?: boolean;
   userEmail?: string;
+  lastEndOfDayDate?: string; // YYYY-MM-DD, last date we ran end-of-day
 }
 
 export interface VerseRecord {
@@ -43,11 +44,12 @@ export interface JournalEntryRecord {
 export interface DailySnapshotRecord {
   id: string;
   date: string;
+  categoryId?: string; // when set, snapshot is for this category only (goals + tracker)
   todosDone: { text: string; completed: boolean }[];
   todosNotDone: { text: string }[];
   trackerLog: { label: string; completed: boolean; value?: string }[];
   goalsLog: { text: string; type: string; completed: boolean }[];
-  journalExtra: string[]; // "what's on your mind" etc.
+  journalExtra: string[];
   createdAt: string;
 }
 
@@ -64,9 +66,46 @@ export interface TrackerTemplateRecord {
 export interface DailyTrackerLogRecord {
   id: string;
   date: string;
-  templateId: string;
-  value?: string; // for text/dropdown
+  templateId: string; // sectionEntryId
+  value?: string;
   completed: boolean;
+}
+
+// Card sections (Goals, Vitamins, Medication, etc.) - structure, not reset at midnight
+export interface CardSectionRecord {
+  id: string;
+  categoryId: string;
+  name: string;
+  order: number;
+  removable: boolean;
+  kind: 'custom' | 'goals' | 'contacts_websites';
+}
+
+// Entries under a section (e.g. "Running" under Exercise) - structure, not reset
+export interface SectionEntryRecord {
+  id: string;
+  sectionId: string;
+  name: string;
+  fieldType: 'text' | 'checkbox' | 'radio' | 'array' | 'texts';
+  options?: string[]; // for radio
+  order: number;
+}
+
+// Daily goals per category (reset at midnight after save)
+export interface DailyGoalsRecord {
+  id: string; // categoryId_date
+  categoryId: string;
+  date: string;
+  goals: { text: string; type: string }[];
+}
+
+// Contacts/Websites - permanent, not reset
+export interface ContactWebsiteRecord {
+  id: string;
+  categoryId: string;
+  type: 'website' | 'contact';
+  linkOrPhone: string;
+  order: number;
 }
 
 export interface HobbyLinkRecord {
@@ -112,22 +151,30 @@ export class AppDatabase extends Dexie {
   goals!: Table<GoalRecord, string>;
   categoryData!: Table<CategoryDataRecord, string>;
   textTool!: Table<TextToolRecord, string>;
+  cardSections!: Table<CardSectionRecord, string>;
+  sectionEntries!: Table<SectionEntryRecord, string>;
+  dailyGoals!: Table<DailyGoalsRecord, string>;
+  contactsWebsites!: Table<ContactWebsiteRecord, string>;
 
   constructor() {
     super('FaithfulLifeDashboard');
-    this.version(1).stores({
+    this.version(3).stores({
       userSettings: 'id',
       verses: 'id, [religion+categoryId], religion',
       todos: 'id, date, [date+completed]',
       actions: 'id, date',
       journalEntries: 'id, date, [date+category]',
-      dailySnapshots: 'id, date',
+      dailySnapshots: 'id, date, categoryId',
       trackerTemplates: 'id, categoryId, [categoryId+order]',
       dailyTrackerLog: 'id, [date+templateId], date',
       hobbyLinks: 'id, categoryId, order',
       goals: 'id, date, categoryId, goalType',
       categoryData: 'id',
       textTool: 'id',
+      cardSections: 'id, categoryId, [categoryId+order]',
+      sectionEntries: 'id, sectionId, [sectionId+order]',
+      dailyGoals: 'id, categoryId, date',
+      contactsWebsites: 'id, categoryId, order',
     });
   }
 }
