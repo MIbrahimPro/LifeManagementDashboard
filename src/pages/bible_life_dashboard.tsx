@@ -35,7 +35,7 @@ export default function BiblicalLifeDashboard() {
     // Custom hooks for data management (date = today so dashboard resets per day)
     const { todos, addTodo, toggleTodo, deleteTodo, clearCompletedTodos } = useTodoList(todayDate);
     const { actions, addAction, toggleAction, deleteAction } = useActionsList(todayDate);
-    const { entries, addEntry } = useJournal();
+    const { addEntry } = useJournal();
 
     // UI state
     const [showQuickAdd, setShowQuickAdd] = useState(false);
