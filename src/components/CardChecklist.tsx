@@ -8,18 +8,16 @@ import {
   deleteCardSection,
   getSectionEntries,
   addSectionEntry,
-  updateSectionEntry,
+//   updateSectionEntry,
   deleteSectionEntry,
   getDailyGoals,
   setDailyGoals,
   getContactsWebsites,
   addContactWebsite,
-  updateContactWebsite,
+//   updateContactWebsite,
   deleteContactWebsite,
   getDailyTrackerLog,
   setDailyTrackerLogEntry,
-  deleteSectionEntry,
-  deleteCardSection,
 } from '../db';
 import type { CardSectionRecord, SectionEntryRecord, ContactWebsiteRecord } from '../db';
 
@@ -101,6 +99,7 @@ export const CardChecklist: FC<CardChecklistProps> = ({ categoryId, isDarkMode }
           onDeleteSection={section.removable ? () => deleteCardSection(section.id).then(loadSections) : undefined}
           editingSectionId={editingSectionId}
           editingSectionName={editingSectionName}
+          setEditingSectionName={setEditingSectionName}
           onSaveEditSection={() => handleEditSection(section.id)}
           onCancelEditSection={() => { setEditingSectionId(null); setEditingSectionName(''); }}
           addEntrySectionId={addEntrySectionId}
@@ -145,6 +144,7 @@ interface SectionBlockProps {
   onStartAddEntry: () => void;
   editingSectionId: string | null;
   editingSectionName: string;
+  setEditingSectionName: (s: string) => void;
   onSaveEditSection: () => void;
   onCancelEditSection: () => void;
   addEntrySectionId: string | null;
@@ -171,6 +171,7 @@ function SectionBlock({
   onRefresh,
   onEditSection,
   onStartAddEntry,
+  setEditingSectionName,
   editingSectionId,
   editingSectionName,
   onSaveEditSection,
@@ -209,6 +210,7 @@ function SectionBlock({
   }
   return (
     <CustomSectionBlock
+        categoryId={categoryId}
         section={section}
         date={date}
         isDarkMode={isDarkMode}
@@ -218,6 +220,7 @@ function SectionBlock({
         onDeleteSection={section.removable ? onDeleteSection : undefined}
         editingSectionId={editingSectionId}
         editingSectionName={editingSectionName}
+        setEditingSectionName={setEditingSectionName}
         onSaveEditSection={onSaveEditSection}
         onCancelEditSection={onCancelEditSection}
         addEntrySectionId={addEntrySectionId}
@@ -395,6 +398,7 @@ function ContactsWebsitesBlock({
 
 function CustomSectionBlock({
   section,
+  categoryId,
   date,
   isDarkMode,
   onRefresh,
@@ -403,6 +407,7 @@ function CustomSectionBlock({
   onDeleteSection,
   editingSectionId,
   editingSectionName,
+  setEditingSectionName,
   onSaveEditSection,
   onCancelEditSection,
   addEntrySectionId,

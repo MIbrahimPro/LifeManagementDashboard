@@ -163,7 +163,7 @@ export class AppDatabase extends Dexie {
       verses: 'id, [religion+categoryId], religion',
       todos: 'id, date, [date+completed]',
       actions: 'id, date',
-      journalEntries: 'id, date, [date+category]',
+      journalEntries: 'id, date, timestamp, [date+category]',
       dailySnapshots: 'id, date, categoryId',
       trackerTemplates: 'id, categoryId, [categoryId+order]',
       dailyTrackerLog: 'id, [date+templateId], date',
