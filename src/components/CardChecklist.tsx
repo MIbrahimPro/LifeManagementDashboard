@@ -94,18 +94,18 @@ export const CardChecklist: FC<CardChecklistProps> = ({ categoryId, isDarkMode }
           onCancelAddEntry={() => setAddEntrySectionId(null)}
         />
       ))}
-      <div className="flex gap-2 items-center">
+      <div className="flex flex-col sm:flex-row gap-2 items-center">
         <input
           value={addSectionName}
           onChange={(e) => setAddSectionName(e.target.value)}
           placeholder="New category name"
           style={inputStyle}
-          className="flex-1 px-2 py-1.5 text-sm border rounded"
+          className="w-full sm:flex-1 px-2 py-1.5 text-sm border rounded"
         />
         <button
           onClick={handleAddSection}
           disabled={!addSectionName.trim()}
-          className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-1.5 rounded text-sm font-medium"
+          className="w-full sm:w-auto flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-1.5 rounded text-sm font-medium"
         >
           <Plus size={14} /> Add category
         </button>
@@ -280,12 +280,12 @@ function GoalsBlock({
           </div>
         ))}
       </div>
-      <div className="flex gap-2 mt-2">
-        <input value={newText} onChange={(e) => setNewText(e.target.value)} placeholder="Goal text" style={inputStyle} className="flex-1 px-2 py-1 text-sm border rounded" />
-        <select value={newType} onChange={(e) => setNewType(e.target.value)} style={inputStyle} className="px-2 py-1 text-sm border rounded">
+      <div className="flex flex-col sm:flex-row gap-2 mt-2">
+        <input value={newText} onChange={(e) => setNewText(e.target.value)} placeholder="Goal text" style={inputStyle} className="w-full sm:flex-1 px-2 py-1 text-sm border rounded" />
+        <select value={newType} onChange={(e) => setNewType(e.target.value)} style={inputStyle} className="w-full sm:w-auto px-2 py-1 text-sm border rounded">
           {GOAL_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <button onClick={add} disabled={!newText.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-sm">Add</button>
+        <button onClick={add} disabled={!newText.trim()} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-sm">Add</button>
       </div>
     </div>
   );
@@ -340,13 +340,13 @@ function ContactsWebsitesBlock({
           </div>
         ))}
       </div>
-      <div className="flex gap-2 mt-2">
-        <select value={newType} onChange={(e) => setNewType(e.target.value as 'website' | 'contact')} style={inputStyle} className="px-2 py-1 text-sm border rounded">
+      <div className="flex flex-col sm:flex-row gap-2 mt-2">
+        <select value={newType} onChange={(e) => setNewType(e.target.value as 'website' | 'contact')} style={inputStyle} className="w-full sm:w-auto px-2 py-1 text-sm border rounded">
           <option value="website">Website</option>
           <option value="contact">Contact</option>
         </select>
-        <input value={newLink} onChange={(e) => setNewLink(e.target.value)} placeholder={newType === 'contact' ? 'Phone number' : 'URL'} style={inputStyle} className="flex-1 px-2 py-1 text-sm border rounded" />
-        <button onClick={add} disabled={!newLink.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-sm">Add</button>
+        <input value={newLink} onChange={(e) => setNewLink(e.target.value)} placeholder={newType === 'contact' ? 'Phone number' : 'URL'} style={inputStyle} className="w-full sm:flex-1 px-2 py-1 text-sm border rounded" />
+        <button onClick={add} disabled={!newLink.trim()} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-2 py-1 rounded text-sm">Add</button>
       </div>
     </div>
   );
@@ -415,16 +415,18 @@ function CustomSectionBlock({
 
       {addEntrySectionId === section.id && (
         <div className="mb-2 p-2 rounded border" style={{ borderColor: isDarkMode ? '#4b5563' : '#e5e7eb' }}>
-          <input value={addEntryName} onChange={(e) => setAddEntryName(e.target.value)} placeholder="Name (e.g. Running)" style={inputStyle} className="w-full mb-1 px-2 py-1 text-sm border rounded" />
-          <select value={addEntryType} onChange={(e) => setAddEntryType(e.target.value as SectionEntryRecord['fieldType'])} style={inputStyle} className="w-full mb-1 px-2 py-1 text-sm border rounded">
-            {FIELD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          {addEntryType === 'radio' && (
-            <input value={addEntryOptions} onChange={(e) => setAddEntryOptions(e.target.value)} placeholder="Options comma-separated" style={inputStyle} className="w-full mb-1 px-2 py-1 text-sm border rounded" />
-          )}
-          <div className="flex gap-2">
-            <button onClick={onAddEntry} disabled={!addEntryName.trim()} className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-sm">Add</button>
-            <button onClick={onCancelAddEntry} className="text-gray-500 text-sm">Cancel</button>
+          <div className="flex flex-col gap-1">
+            <input value={addEntryName} onChange={(e) => setAddEntryName(e.target.value)} placeholder="Name (e.g. Running)" style={inputStyle} className="w-full px-2 py-1 text-sm border rounded" />
+            <select value={addEntryType} onChange={(e) => setAddEntryType(e.target.value as SectionEntryRecord['fieldType'])} style={inputStyle} className="w-full px-2 py-1 text-sm border rounded">
+              {FIELD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            {addEntryType === 'radio' && (
+              <input value={addEntryOptions} onChange={(e) => setAddEntryOptions(e.target.value)} placeholder="Options comma-separated" style={inputStyle} className="w-full px-2 py-1 text-sm border rounded" />
+            )}
+            <div className="flex gap-2">
+              <button onClick={onAddEntry} disabled={!addEntryName.trim()} className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-sm">Add</button>
+              <button onClick={onCancelAddEntry} className="text-gray-500 text-sm">Cancel</button>
+            </div>
           </div>
         </div>
       )}
