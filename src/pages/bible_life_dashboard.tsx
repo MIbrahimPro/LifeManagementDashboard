@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Sun, Moon, Loader, ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { Religion } from '../data/verses';
 import { getAiVerses } from '../data/verseUtils';
 import { versesCache } from '../data/verses';
-import { useTodoList, useActionsList, useJournal } from '../hooks/useLifeTools';
+import { seedIfNeeded, getUserSettings, setUserSettings } from '../db';
+import { useTodoList, useActionsList, useJournal, today } from '../hooks/useLifeTools';
 import { QuickAddModal } from '../components/QuickAddModal';
 import { TodoListModal } from '../components/TodoListModal';
 import { ActionsModal } from '../components/ActionsModal';
 import { TopTools } from '../components/TopTools';
 import { CategoryCardContainer } from '../components/CategoryCardContainer';
-import { JourneyView } from '../components/JourneyView';
+import { GoalsSection } from '../components/GoalsSection';
 
 interface VerseIndices {
     [categoryId: string]: number;
@@ -28,16 +30,17 @@ export default function BiblicalLifeDashboard() {
         return indices;
     });
 
-    // Custom hooks for data management
-    const { todos, addTodo, toggleTodo, deleteTodo, clearCompletedTodos } = useTodoList();
-    const { actions, addAction, toggleAction, deleteAction } = useActionsList();
+    const todayDate = today();
+
+    // Custom hooks for data management (date = today so dashboard resets per day)
+    const { todos, addTodo, toggleTodo, deleteTodo, clearCompletedTodos, runEndOfDay } = useTodoList(todayDate);
+    const { actions, addAction, toggleAction, deleteAction } = useActionsList(todayDate);
     const { entries, addEntry } = useJournal();
 
     // UI state
     const [showQuickAdd, setShowQuickAdd] = useState(false);
     const [showTodoList, setShowTodoList] = useState(false);
     const [showActions, setShowActions] = useState(false);
-    const [showJourney, setShowJourney] = useState(false);
     const [quickAddInput, setQuickAddInput] = useState('');
     const [addToDropdownOpen, setAddToDropdownOpen] = useState(false);
     const [showCustomReligionForm, setShowCustomReligionForm] = useState(false);
@@ -65,33 +68,31 @@ export default function BiblicalLifeDashboard() {
         }
     };
 
-    // Load religion and verses on mount
+    // Seed db if empty, load religion and verses on mount
     useEffect(() => {
-        const storedReligion = localStorage.getItem('userReligion') as Religion | null;
-        const initialReligion = storedReligion || 'christianity';
-
-        if (!storedReligion) {
-            localStorage.setItem('userReligion', 'christianity');
-        }
-        setReligion(initialReligion);
-
+        let cancelled = false;
         (async () => {
+            await seedIfNeeded();
+            const settings = await getUserSettings();
+            const initialReligion = (settings?.religion as Religion) || 'christianity';
+            if (!cancelled) setReligion(initialReligion);
+
             setIsLoadingVerses(true);
             try {
                 const allVerses = await getAiVerses(initialReligion);
-                if (Object.keys(allVerses).length > 0) {
+                if (!cancelled && Object.keys(allVerses).length > 0) {
                     versesCache[initialReligion] = allVerses;
-                    console.log(`Loaded verses for ${initialReligion}:`, allVerses);
                     setVersesRefreshKey(prev => prev + 1);
                 }
             } finally {
-                setIsLoadingVerses(false);
+                if (!cancelled) setIsLoadingVerses(false);
             }
         })();
+        return () => { cancelled = true; };
     }, []);
 
     const handleReligionSelect = useCallback(async (selectedReligion: Religion) => {
-        localStorage.setItem('userReligion', selectedReligion);
+        await setUserSettings({ religion: selectedReligion });
         setReligion(selectedReligion);
         const newVerseIndices: VerseIndices = {};
         ['physical', 'hobby', 'income', 'assets', 'family', 'oneonone', 'politics', 'spiritual'].forEach(cat => {
@@ -308,17 +309,33 @@ export default function BiblicalLifeDashboard() {
                         >
                             ✓ Actions ({actions.length})
                         </button>
-                        <button
-                            onClick={() => setShowJourney(true)}
+                        <Link
+                            to="/journal"
                             style={{
                                 backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
                                 color: isDarkMode ? '#f3f4f6' : '#111827'
                             }}
-                            className="px-6 py-3 rounded-lg font-semibold transition hover:opacity-80"
+                            className="px-6 py-3 rounded-lg font-semibold transition hover:opacity-80 inline-block"
                         >
-                            📖 My Journey ({entries.length})
+                            📖 Journal ({entries.length})
+                        </Link>
+                        <button
+                            onClick={() => runEndOfDay()}
+                            style={{
+                                backgroundColor: isDarkMode ? '#065f46' : '#059669',
+                                color: '#fff'
+                            }}
+                            className="px-6 py-3 rounded-lg font-semibold transition hover:opacity-90"
+                            title="Save today's todos & tracker to journal, remove completed todos"
+                        >
+                            End of day
                         </button>
                     </div>
+                </div>
+
+                {/* Goals for today */}
+                <div className="mb-8">
+                    <GoalsSection isDarkMode={isDarkMode} date={todayDate} title="Today's goals (short / medium / long)" />
                 </div>
 
                 {/* Category Cards */}
@@ -360,13 +377,6 @@ export default function BiblicalLifeDashboard() {
                     onToggle={toggleAction}
                     onDelete={deleteAction}
                     onAddToJournal={handleAddToJournal}
-                />
-
-                <JourneyView
-                    open={showJourney}
-                    isDarkMode={isDarkMode}
-                    entries={entries}
-                    onClose={() => setShowJourney(false)}
                 />
 
                 {/* Footer */}

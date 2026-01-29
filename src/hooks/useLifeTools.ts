@@ -1,205 +1,219 @@
 import { useState, useCallback, useEffect } from 'react';
+import {
+  getTodosForDate,
+  addTodo as apiAddTodo,
+  toggleTodo as apiToggleTodo,
+  deleteTodo as apiDeleteTodo,
+  getActionsForDate,
+  addAction as apiAddAction,
+  toggleAction as apiToggleAction,
+  deleteAction as apiDeleteAction,
+  getAllJournalEntries,
+  addJournalEntry as apiAddJournalEntry,
+  runEndOfDay as apiRunEndOfDay,
+} from '../db';
+
+export const today = () => new Date().toISOString().slice(0, 10);
 
 export interface TodoItem {
-    id: string;
-    text: string;
-    completed: boolean;
-    timestamp?: string;
+  id: string;
+  text: string;
+  completed: boolean;
+  timestamp?: string;
+  date: string;
 }
 
 export interface ActionItem {
-    id: string;
-    text: string;
-    completed: boolean;
-    timestamp?: string;
+  id: string;
+  text: string;
+  completed: boolean;
+  timestamp?: string;
+  date: string;
 }
 
 export interface JournalEntry {
-    id: string;
-    text: string;
-    timestamp: string;
-    category: string;
+  id: string;
+  text: string;
+  timestamp: string;
+  category: string;
+  date: string;
 }
 
-// To-Do List Hook
-export const useTodoList = () => {
-    const [todos, setTodos] = useState<TodoItem[]>(() => {
-        try {
-            const stored = localStorage.getItem('todoList');
-            return stored ? JSON.parse(stored) : [];
-        } catch {
-            return [];
-        }
-    });
+export function useTodoList(date: string = today()) {
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        try {
-            localStorage.setItem('todoList', JSON.stringify(todos));
-        } catch (error) {
-            console.error('Error saving todos', error);
-        }
-    }, [todos]);
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const list = await getTodosForDate(date);
+    setTodos(list.map((t) => ({ ...t, timestamp: t.createdAt })) as TodoItem[]);
+    setLoading(false);
+  }, [date]);
 
-    const addTodo = useCallback((text: string) => {
-        setTodos(prev => [...prev, {
-            id: Date.now().toString(),
-            text,
-            completed: false,
-            timestamp: new Date().toLocaleString()
-        }]);
-    }, []);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-    const toggleTodo = useCallback((id: string) => {
-        setTodos(prev =>
-            prev.map(todo =>
-                todo.id === id ? { ...todo, completed: !todo.completed } : todo
-            )
-        );
-    }, []);
+  const addTodo = useCallback(
+    async (text: string) => {
+      await apiAddTodo(text, date);
+      await refresh();
+    },
+    [date, refresh]
+  );
 
-    const deleteTodo = useCallback((id: string) => {
-        setTodos(prev => prev.filter(todo => todo.id !== id));
-    }, []);
+  const toggleTodo = useCallback(async (id: string) => {
+    await apiToggleTodo(id);
+    setTodos((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+    );
+  }, []);
 
-    const clearCompletedTodos = useCallback(() => {
-        setTodos(prev => prev.filter(todo => !todo.completed));
-    }, []);
+  const deleteTodo = useCallback(
+    async (id: string) => {
+      await apiDeleteTodo(id);
+      await refresh();
+    },
+    [refresh]
+  );
 
-    return { todos, addTodo, toggleTodo, deleteTodo, clearCompletedTodos };
-};
+  const clearCompletedTodos = useCallback(
+    async () => {
+      const completed = todos.filter((t) => t.completed);
+      for (const t of completed) {
+        await apiDeleteTodo(t.id);
+      }
+      await refresh();
+    },
+    [todos, refresh]
+  );
 
-// Actions List Hook
-export const useActionsList = () => {
-    const [actions, setActions] = useState<ActionItem[]>(() => {
-        try {
-            const stored = localStorage.getItem('actionsList');
-            return stored ? JSON.parse(stored) : [];
-        } catch {
-            return [];
-        }
-    });
+  const runEndOfDay = useCallback(async () => {
+    await apiRunEndOfDay(date);
+    await refresh();
+  }, [date, refresh]);
 
-    useEffect(() => {
-        try {
-            localStorage.setItem('actionsList', JSON.stringify(actions));
-        } catch (error) {
-            console.error('Error saving actions', error);
-        }
-    }, [actions]);
+  return {
+    todos,
+    loading,
+    addTodo,
+    toggleTodo,
+    deleteTodo,
+    clearCompletedTodos,
+    runEndOfDay,
+    refresh,
+  };
+}
 
-    const addAction = useCallback((text: string) => {
-        setActions(prev => [...prev, {
-            id: Date.now().toString(),
-            text,
-            completed: false,
-            timestamp: new Date().toLocaleString()
-        }]);
-    }, []);
+export function useActionsList(date: string = today()) {
+  const [actions, setActions] = useState<ActionItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    const toggleAction = useCallback((id: string) => {
-        setActions(prev =>
-            prev.map(action =>
-                action.id === id ? { ...action, completed: !action.completed } : action
-            )
-        );
-    }, []);
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const list = await getActionsForDate(date);
+    setActions(list.map((a) => ({ ...a, timestamp: a.createdAt })) as ActionItem[]);
+    setLoading(false);
+  }, [date]);
 
-    const deleteAction = useCallback((id: string) => {
-        setActions(prev => prev.filter(action => action.id !== id));
-    }, []);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-    return { actions, addAction, toggleAction, deleteAction };
-};
+  const addAction = useCallback(
+    async (text: string) => {
+      await apiAddAction(text, date);
+      await refresh();
+    },
+    [date, refresh]
+  );
 
-// Journal Hook
-export const useJournal = () => {
-    const [entries, setEntries] = useState<JournalEntry[]>(() => {
-        try {
-            const stored = localStorage.getItem('journalEntries');
-            return stored ? JSON.parse(stored) : [];
-        } catch {
-            return [];
-        }
-    });
+  const toggleAction = useCallback(async (id: string) => {
+    await apiToggleAction(id);
+    setActions((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, completed: !a.completed } : a))
+    );
+  }, []);
 
-    useEffect(() => {
-        try {
-            localStorage.setItem('journalEntries', JSON.stringify(entries));
-        } catch (error) {
-            console.error('Error saving journal entries', error);
-        }
-    }, [entries]);
+  const deleteAction = useCallback(
+    async (id: string) => {
+      await apiDeleteAction(id);
+      await refresh();
+    },
+    [refresh]
+  );
 
-    const addEntry = useCallback((text: string, category: string) => {
-        setEntries(prev => [...prev, {
-            id: Date.now().toString(),
-            text,
-            timestamp: new Date().toLocaleString(),
-            category
-        }]);
-    }, []);
+  return { actions, loading, addAction, toggleAction, deleteAction, refresh };
+}
 
-    const deleteEntry = useCallback((id: string) => {
-        setEntries(prev => prev.filter(entry => entry.id !== id));
-    }, []);
+export function useJournal() {
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    return { entries, addEntry, deleteEntry };
-};
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const list = await getAllJournalEntries();
+    setEntries(list as JournalEntry[]);
+    setLoading(false);
+  }, []);
 
-// Text Tool Hook
-export const useTextTool = () => {
-    const [text, setText] = useState(() => {
-        try {
-            return localStorage.getItem('textTool') || '';
-        } catch {
-            return '';
-        }
-    });
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-    useEffect(() => {
-        try {
-            localStorage.setItem('textTool', text);
-        } catch (error) {
-            console.error('Error saving text', error);
-        }
-    }, [text]);
+  const addEntry = useCallback(
+    async (text: string, category: string, entryDate?: string) => {
+      await apiAddJournalEntry(text, category, entryDate ?? today());
+      await refresh();
+    },
+    [refresh]
+  );
 
-    const clearText = useCallback(() => {
-        setText('');
-    }, []);
+  return { entries, loading, addEntry, refresh };
+}
 
-    const copyText = useCallback(async () => {
-        try {
-            await navigator.clipboard.writeText(text);
-            return true;
-        } catch (error) {
-            console.error('Failed to copy:', error);
-            return false;
-        }
-    }, [text]);
+// Re-export for components that only need text/email from TopTools (will use db in TopTools)
+export function useTextTool() {
+  const [text, setText] = useState('');
+  const [loading, setLoading] = useState(true);
 
-    return { text, setText, clearText, copyText };
-};
+  useEffect(() => {
+    (async () => {
+      const { getTextToolContent } = await import('../db');
+      const content = await getTextToolContent();
+      setText(content);
+      setLoading(false);
+    })();
+  }, []);
 
-// Email Hook
-export const useEmail = () => {
-    const [email, setEmail] = useState(() => {
-        try {
-            return localStorage.getItem('userEmail') || 'your-email@example.com';
-        } catch {
-            return 'your-email@example.com';
-        }
-    });
+  const persist = useCallback(async (value: string) => {
+    const { setTextToolContent } = await import('../db');
+    await setTextToolContent(value);
+  }, []);
 
-    const copyEmail = useCallback(async () => {
-        try {
-            await navigator.clipboard.writeText(email);
-            return true;
-        } catch (error) {
-            console.error('Failed to copy:', error);
-            return false;
-        }
-    }, [email]);
+  return { text, setText, persist, loading };
+}
 
-    return { email, setEmail, copyEmail };
-};
+export function useEmail() {
+  const [email, setEmail] = useState('your-email@example.com');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { getUserSettings } = await import('../db');
+      const settings = await getUserSettings();
+      if (settings?.userEmail) setEmail(settings.userEmail);
+      setLoading(false);
+    })();
+  }, []);
+
+  const persist = useCallback(
+    async (value: string) => {
+      const { setUserSettings } = await import('../db');
+      await setUserSettings({ userEmail: value });
+    },
+    []
+  );
+
+  return { email, setEmail, persist, loading };
+}

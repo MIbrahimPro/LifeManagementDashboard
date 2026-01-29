@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { FC } from 'react';
 import type { LucideProps } from 'lucide-react';
 import type { Religion } from '../data/verses';
 import { versesCache } from '../data/verses';
+import { getCategoryData, setCategoryData } from '../db';
 import { MultiSelectDropdown } from './MultiSelectDropdown';
 import { SingleSelectDropdown } from './SingleSelectDropdown';
+import { HobbyLinks } from './HobbyLinks';
+import { DailyTracker } from './DailyTracker';
 import { goalOptions } from '../data/dropdownOptions';
 
 interface Category {
@@ -33,16 +36,18 @@ export const CategoryCard: FC<CategoryCardProps> = ({
 }) => {
     const Icon = category.icon;
     const [currentVerse, setCurrentVerse] = useState<string>("Loading...");
-    const [data, setData] = useState<{ [key: string]: string | string[] }>(() => {
-        try {
-            const stored = localStorage.getItem(`category_${category.id}`);
-            return stored ? JSON.parse(stored) : {};
-        } catch {
-            return {};
-        }
-    });
+    const [data, setData] = useState<{ [key: string]: string | string[] }>({});
 
-    // Load verse
+    // Load category data from db
+    useEffect(() => {
+        let cancelled = false;
+        getCategoryData(category.id).then((loaded) => {
+            if (!cancelled) setData(loaded as { [key: string]: string | string[] });
+        });
+        return () => { cancelled = true; };
+    }, [category.id]);
+
+    // Load verse (from cache populated by dashboard; verses stored in db via verseUtils)
     useEffect(() => {
         if (!religion) {
             setCurrentVerse("Loading...");
@@ -58,21 +63,13 @@ export const CategoryCard: FC<CategoryCardProps> = ({
         }
     }, [religion, category.id, verseIndex, versesRefreshKey]);
 
-    // Save data to localStorage
-    useEffect(() => {
-        try {
-            localStorage.setItem(`category_${category.id}`, JSON.stringify(data));
-        } catch (error) {
-            console.error('Error saving category data', error);
-        }
-    }, [data, category.id]);
-
-    const updateField = (field: string, value: string | string[]) => {
-        setData(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
+    const updateField = useCallback((field: string, value: string | string[]) => {
+        setData(prev => {
+            const next = { ...prev, [field]: value };
+            setCategoryData(category.id, next as Record<string, unknown>);
+            return next;
+        });
+    }, [category.id]);
 
     const addTextField = (field: string, placeholder: string) => (
         <div>
@@ -136,6 +133,7 @@ export const CategoryCard: FC<CategoryCardProps> = ({
                 {/* Category-specific fields */}
                 {category.id === 'physical' && (
                     <>
+                        <DailyTracker categoryId="physical" isDarkMode={isDarkMode} title="Today's checklist (meal, vitamins, meds, exercise)" />
                         {addTextField('doctors', 'Doctors')}
                         {addTextField('food', 'Food - What to Eat')}
                         {addTextField('vitamins', 'Vitamins & Supplements')}
@@ -153,6 +151,7 @@ export const CategoryCard: FC<CategoryCardProps> = ({
 
                 {category.id === 'hobby' && (
                     <>
+                        <HobbyLinks categoryId="hobby" isDarkMode={isDarkMode} title="Hobbies / Links (click to open)" />
                         {addTextField('hobbies', 'Hobbies & Skills')}
                         {addTextField('hobbyGoalsText', 'Goals Details')}
                         <MultiSelectDropdown

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { FC } from 'react';
 import { Copy, Trash2, Mail, Type, Calendar } from 'lucide-react';
+import { getUserSettings, setUserSettings, getTextToolContent, setTextToolContent } from '../db';
 
 interface TopToolsProps {
     isDarkMode: boolean;
@@ -12,6 +13,18 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
     const [text, setText] = useState('');
     const [copyFeedback, setCopyFeedback] = useState('');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+    useEffect(() => {
+        getUserSettings().then((s) => s?.userEmail && setEmail(s.userEmail));
+        getTextToolContent().then(setText);
+    }, []);
+
+    const persistEmail = useCallback((value: string) => {
+        setUserSettings({ userEmail: value });
+    }, []);
+    const persistText = useCallback((value: string) => {
+        setTextToolContent(value);
+    }, []);
 
     const parseDate = (dateString: string) => {
         const [year, month, day] = dateString.split('-').map(Number);
@@ -136,7 +149,7 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
                             <input
                                 type="email"
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e) => { setEmail(e.target.value); persistEmail(e.target.value); }}
                                 style={{
                                     backgroundColor: isDarkMode ? '#374151' : '#ffffff',
                                     borderColor: isDarkMode ? '#4b5563' : '#e5e7eb',
@@ -165,6 +178,7 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
                         <textarea
                             value={text}
                             onChange={(e) => setText(e.target.value)}
+                            onBlur={(e) => persistText(e.target.value)}
                             placeholder="Type your text here..."
                             style={{
                                 backgroundColor: isDarkMode ? '#374151' : '#ffffff',
@@ -182,7 +196,7 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
                                 <Copy size={16} /> Copy
                             </button>
                             <button
-                                onClick={handleClearText}
+                                onClick={() => { handleClearText(); setText(''); persistText(''); }}
                                 className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition text-sm"
                             >
                                 <Trash2 size={16} /> Clear
