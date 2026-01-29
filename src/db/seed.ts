@@ -7,20 +7,82 @@ const PHYSICAL_TRACKER_TEMPLATES: Omit<TrackerTemplateRecord, 'id'>[] = [
   { categoryId: 'physical', type: 'medication', label: 'Medication', fieldType: 'checkbox', order: 2 },
   { categoryId: 'physical', type: 'exercise', label: 'Running', fieldType: 'checkbox', order: 3 },
   { categoryId: 'physical', type: 'exercise', label: 'Walking', fieldType: 'checkbox', order: 4 },
-  { categoryId: 'physical', type: 'exercise', label: 'Weights / Gym', fieldType: 'checkbox', order: 5 },
+  { categoryId: 'physical', type: 'exercise', label: 'Yoga', fieldType: 'checkbox', order: 5 },
+  { categoryId: 'physical', type: 'exercise', label: 'Weights / Gym', fieldType: 'checkbox', order: 6 },
 ];
 
-const DEFAULT_SECTION_NAMES: { name: string; kind: CardSectionRecord['kind']; removable: boolean }[] = [
-  { name: 'Goals', kind: 'goals', removable: false },
-  { name: 'Vitamins', kind: 'custom', removable: true },
-  { name: 'Medication', kind: 'custom', removable: true },
-  { name: 'Food', kind: 'custom', removable: true },
-  { name: 'Doctors', kind: 'custom', removable: true },
-  { name: 'Exercise', kind: 'custom', removable: true },
-  { name: 'Good habit', kind: 'custom', removable: true },
-  { name: 'Bad habit', kind: 'custom', removable: true },
-  { name: 'Contacts & Websites', kind: 'contacts_websites', removable: false },
-];
+const SECTIONS_BY_CATEGORY: Record<string, { name: string; kind: CardSectionRecord['kind']; removable: boolean }[]> = {
+  physical: [
+    { name: 'Bible verse - ai', kind: 'custom', removable: true },
+    { name: 'Goals', kind: 'goals', removable: false },
+    { name: 'To Do List', kind: 'custom', removable: true },
+    { name: "Doctor's", kind: 'custom', removable: true },
+    { name: 'Food - what to eat', kind: 'custom', removable: true },
+    { name: 'Vitamins / Supplements', kind: 'custom', removable: true },
+    { name: 'Medications', kind: 'custom', removable: true },
+    { name: 'Motion (Walk, Run, Yoga)', kind: 'custom', removable: true },
+    { name: 'Contacts / websites', kind: 'contacts_websites', removable: false },
+    { name: 'Gain a good habit', kind: 'custom', removable: true },
+    { name: 'Lose a bad habit', kind: 'custom', removable: true },
+  ],
+  hobby: [
+    { name: 'Bible verse - ai', kind: 'custom', removable: true },
+    { name: 'Goals', kind: 'goals', removable: false },
+    { name: 'Projects (Hands help to make)', kind: 'custom', removable: true },
+    { name: 'Contacts / websites', kind: 'contacts_websites', removable: false },
+    { name: 'Gain a good habit', kind: 'custom', removable: true },
+    { name: 'Lose a bad habit', kind: 'custom', removable: true },
+  ],
+  income: [
+    { name: 'Bible verse - ai', kind: 'custom', removable: true },
+    { name: 'Goals', kind: 'goals', removable: false },
+    { name: 'Contacts', kind: 'custom', removable: true },
+    { name: 'Banking', kind: 'custom', removable: true },
+    { name: 'Expenses', kind: 'custom', removable: true },
+    { name: 'List', kind: 'custom', removable: true },
+    { name: 'Contacts / websites', kind: 'contacts_websites', removable: false },
+    { name: 'Gain a good habit', kind: 'custom', removable: true },
+    { name: 'Lose a bad habit', kind: 'custom', removable: true },
+  ],
+  assets: [
+    { name: 'Bible verse - ai', kind: 'custom', removable: true },
+    { name: 'Goals', kind: 'goals', removable: false },
+    { name: 'Liabilities', kind: 'custom', removable: true },
+    { name: 'Contacts / websites', kind: 'contacts_websites', removable: false },
+    { name: 'Gain a good habit', kind: 'custom', removable: true },
+    { name: 'Lose a bad habit', kind: 'custom', removable: true },
+  ],
+  family: [
+    { name: 'Bible verse - ai', kind: 'custom', removable: true },
+    { name: 'Goals', kind: 'goals', removable: false },
+    { name: 'Birthday list (DofB & Age)', kind: 'custom', removable: true },
+    { name: 'Gain a good habit', kind: 'custom', removable: true },
+    { name: 'Lose a bad habit', kind: 'custom', removable: true },
+  ],
+  oneonone: [
+    { name: 'Bible verse - ai', kind: 'custom', removable: true },
+    { name: 'Goals', kind: 'goals', removable: false },
+    { name: 'Topics of argument & fix', kind: 'custom', removable: true },
+    { name: 'Gain a good habit', kind: 'custom', removable: true },
+    { name: 'Lose a bad habit', kind: 'custom', removable: true },
+  ],
+  politics: [
+    { name: 'Constitution Ai', kind: 'custom', removable: true },
+    { name: 'Goals', kind: 'goals', removable: false },
+    { name: 'Federal Laws', kind: 'custom', removable: true },
+    { name: 'State Laws', kind: 'custom', removable: true },
+    { name: 'Local Laws', kind: 'custom', removable: true },
+    { name: 'Contacts / websites', kind: 'contacts_websites', removable: false },
+    { name: 'Lose a bad habit', kind: 'custom', removable: true },
+  ],
+  spiritual: [
+    { name: 'Bible verse - ai', kind: 'custom', removable: true },
+    { name: 'Goals', kind: 'goals', removable: false },
+    { name: 'Contacts / websites', kind: 'contacts_websites', removable: false },
+    { name: 'Gain a good habit', kind: 'custom', removable: true },
+    { name: 'Lose a bad habit', kind: 'custom', removable: true },
+  ],
+};
 
 const CATEGORY_IDS = ['physical', 'hobby', 'income', 'assets', 'family', 'oneonone', 'politics', 'spiritual'];
 
@@ -39,8 +101,9 @@ export async function seedIfNeeded(): Promise<void> {
   const sectionCount = await db.cardSections.count();
   if (sectionCount === 0) {
     for (const catId of CATEGORY_IDS) {
-      for (let i = 0; i < DEFAULT_SECTION_NAMES.length; i++) {
-        const { name, kind, removable } = DEFAULT_SECTION_NAMES[i];
+      const sections = SECTIONS_BY_CATEGORY[catId] || [];
+      for (let i = 0; i < sections.length; i++) {
+        const { name, kind, removable } = sections[i];
         await db.cardSections.add({
           id: generateId(),
           categoryId: catId,
