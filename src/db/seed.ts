@@ -11,16 +11,17 @@ const PHYSICAL_TRACKER_TEMPLATES: Omit<TrackerTemplateRecord, 'id'>[] = [
     { categoryId: 'physical', type: 'exercise', label: 'Weights / Gym', fieldType: 'checkbox', order: 6 },
 ];
 
-const SECTIONS_BY_CATEGORY: Record<string, { name: string; kind: CardSectionRecord['kind']; removable: boolean }[]> = {
+const SECTIONS_BY_CATEGORY: Record<string, { name: string; kind: CardSectionRecord['kind']; removable: boolean; group?: 'diet' | 'exercise' }[]> = {
     physical: [
-
         { name: 'Goals', kind: 'goals', removable: false },
-        { name: 'To Do List', kind: 'custom', removable: true },
-        { name: "Doctor's", kind: 'custom', removable: true },
-        { name: 'Food - what to eat', kind: 'custom', removable: true },
-        { name: 'Vitamins / Supplements', kind: 'custom', removable: true },
-        { name: 'Medications', kind: 'custom', removable: true },
-        { name: 'Motion (Walk, Run, Yoga)', kind: 'custom', removable: true },
+        { name: 'To-Do List', kind: 'custom', removable: true },
+        { name: 'Meal planning', kind: 'custom', removable: true, group: 'diet' },
+        { name: 'Vitamins', kind: 'custom', removable: true, group: 'diet' },
+        { name: 'Pharmaceuticals', kind: 'custom', removable: true, group: 'diet' },
+        { name: 'Walking', kind: 'custom', removable: true, group: 'exercise' },
+        { name: 'Running', kind: 'custom', removable: true, group: 'exercise' },
+        { name: 'Yoga', kind: 'custom', removable: true, group: 'exercise' },
+        { name: 'Weight lifting', kind: 'custom', removable: true, group: 'exercise' },
         { name: 'Contacts / websites', kind: 'contacts_websites', removable: false },
         { name: 'Gain a good habit', kind: 'custom', removable: true },
         { name: 'Lose a bad habit', kind: 'custom', removable: true },
@@ -34,28 +35,19 @@ const SECTIONS_BY_CATEGORY: Record<string, { name: string; kind: CardSectionReco
         { name: 'Lose a bad habit', kind: 'custom', removable: true },
     ],
     income: [
-
         { name: 'Goals', kind: 'goals', removable: false },
-        { name: 'Contacts', kind: 'custom', removable: true },
-        { name: 'Banking', kind: 'custom', removable: true },
-        { name: 'Expenses', kind: 'custom', removable: true },
-        { name: 'List', kind: 'custom', removable: true },
         { name: 'Contacts / websites', kind: 'contacts_websites', removable: false },
         { name: 'Gain a good habit', kind: 'custom', removable: true },
         { name: 'Lose a bad habit', kind: 'custom', removable: true },
     ],
     assets: [
-
         { name: 'Goals', kind: 'goals', removable: false },
-        { name: 'Liabilities', kind: 'custom', removable: true },
         { name: 'Contacts / websites', kind: 'contacts_websites', removable: false },
         { name: 'Gain a good habit', kind: 'custom', removable: true },
         { name: 'Lose a bad habit', kind: 'custom', removable: true },
     ],
     family: [
-
         { name: 'Goals', kind: 'goals', removable: false },
-        { name: 'Birthday list (DofB & Age)', kind: 'custom', removable: true },
         { name: 'Gain a good habit', kind: 'custom', removable: true },
         { name: 'Lose a bad habit', kind: 'custom', removable: true },
     ],
@@ -103,7 +95,7 @@ export async function seedIfNeeded(): Promise<void> {
         for (const catId of CATEGORY_IDS) {
             const sections = SECTIONS_BY_CATEGORY[catId] || [];
             for (let i = 0; i < sections.length; i++) {
-                const { name, kind, removable } = sections[i];
+                const { name, kind, removable, group } = sections[i];
                 await db.cardSections.add({
                     id: generateId(),
                     categoryId: catId,
@@ -111,6 +103,7 @@ export async function seedIfNeeded(): Promise<void> {
                     order: i,
                     removable,
                     kind,
+                    ...(group && { group }),
                 });
             }
         }

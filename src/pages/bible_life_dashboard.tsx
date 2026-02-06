@@ -190,7 +190,7 @@ export default function BiblicalLifeDashboard() {
                 </div>
             )}
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-[160rem] mx-auto px-4 sm:px-6 lg:px-8 py-8" style={{ zoom: 0.75 }}>
                 {/* Header */}
                 <header className="mb-10">
                     <div className="flex justify-between items-start mb-6">
@@ -218,9 +218,6 @@ export default function BiblicalLifeDashboard() {
                         </button>
                     </div>
                 </header>
-
-                {/* Top Tools */}
-                <TopTools isDarkMode={isDarkMode} />
 
                 {/* Quick Add Section - Search Bar */}
                 <div style={{
@@ -293,12 +290,13 @@ export default function BiblicalLifeDashboard() {
                     </div>
                 </div>
 
-                {/* View Buttons Section */}
+                {/* Tools & View Buttons - Email, Text, Calendar on same line as To-Do, Actions, Journal */}
                 <div style={{
                     backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
                     borderColor: isDarkMode ? '#374151' : '#e5e7eb'
                 }} className="rounded-2xl shadow-sm border p-5 mb-8">
                     <div className="flex flex-wrap gap-2">
+                        <TopTools isDarkMode={isDarkMode} compact />
                         <button
                             onClick={() => setShowTodoList(true)}
                             style={{

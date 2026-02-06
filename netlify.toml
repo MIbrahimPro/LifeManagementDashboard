@@ -5,3 +5,5 @@
 
 [functions]
   node_bundler = "esbuild"
+  # Set OPENROUTER_API_KEY in Netlify Dashboard: Site settings > Environment variables
+

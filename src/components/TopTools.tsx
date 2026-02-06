@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { FC } from 'react';
 import { Copy, Trash2, Mail, Type, Calendar } from 'lucide-react';
 import { getUserSettings, setUserSettings, getTextToolContent, setTextToolContent } from '../db';
 
 interface TopToolsProps {
     isDarkMode: boolean;
+    compact?: boolean;
 }
 
-export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
-    const [activeTab, setActiveTab] = useState<'email' | 'text' | 'calendar'>('email');
+export const TopTools: FC<TopToolsProps> = ({ isDarkMode, compact }) => {
+    const [activeTab, setActiveTab] = useState<'email' | 'text' | 'calendar' | null>(null);
     const [email, setEmail] = useState('your-email@example.com');
     const [text, setText] = useState('');
     const [copyFeedback, setCopyFeedback] = useState('');
@@ -112,6 +113,94 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
         return days;
     };
 
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const compactContent = compact && (
+        <>
+            {[
+                { id: 'email' as const, label: 'Email', icon: Mail },
+                { id: 'text' as const, label: 'Text', icon: Type },
+                { id: 'calendar' as const, label: 'Calendar', icon: Calendar }
+            ].map(({ id, label, icon: Icon }) => (
+                <div key={id} className="relative">
+                    <button
+                        onClick={() => setActiveTab(activeTab === id ? null : id)}
+                        style={{
+                            backgroundColor: activeTab === id ? '#2563eb' : isDarkMode ? '#374151' : '#e5e7eb',
+                            color: activeTab === id ? '#fff' : isDarkMode ? '#f3f4f6' : '#111827'
+                        }}
+                        className="flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition hover:opacity-80"
+                    >
+                        <Icon size={18} />
+                        {label}
+                    </button>
+                    {activeTab === id && (
+                        <div
+                            ref={containerRef}
+                            style={{
+                                backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
+                                borderColor: isDarkMode ? '#374151' : '#e5e7eb'
+                            }}
+                            className="absolute left-0 top-full mt-2 z-50 min-w-[320px] max-w-[400px] p-4 rounded-lg border shadow-xl"
+                        >
+                            {id === 'email' && (
+                                <div>
+                                    <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-2">Your Email</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => { setEmail(e.target.value); persistEmail(e.target.value); }}
+                                            style={{ backgroundColor: isDarkMode ? '#374151' : '#fff', borderColor: isDarkMode ? '#4b5563' : '#e5e7eb', color: isDarkMode ? '#f3f4f6' : '#111827' }}
+                                            className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <button onClick={handleCopyEmail} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition text-sm">
+                                            <Copy size={16} /> Copy
+                                        </button>
+                                    </div>
+                                    {copyFeedback === 'Email copied!' && <p style={{ color: '#10b981' }} className="text-xs mt-2 font-semibold">✓ {copyFeedback}</p>}
+                                </div>
+                            )}
+                            {id === 'text' && (
+                                <div>
+                                    <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-2">Quick Text</label>
+                                    <textarea
+                                        value={text}
+                                        onChange={(e) => setText(e.target.value)}
+                                        onBlur={(e) => persistText(e.target.value)}
+                                        placeholder="Type your text here..."
+                                        style={{ backgroundColor: isDarkMode ? '#374151' : '#fff', borderColor: isDarkMode ? '#4b5563' : '#e5e7eb', color: isDarkMode ? '#f3f4f6' : '#111827' }}
+                                        className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                        rows={3}
+                                    />
+                                    <div className="flex gap-2 mt-2">
+                                        <button onClick={handleCopyText} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition text-sm"><Copy size={16} /> Copy</button>
+                                        <button onClick={() => { handleClearText(); persistText(''); }} className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition text-sm"><Trash2 size={16} /> Clear</button>
+                                    </div>
+                                    {copyFeedback === 'Text copied!' && <p style={{ color: '#10b981' }} className="text-xs mt-2 font-semibold">✓ {copyFeedback}</p>}
+                                </div>
+                            )}
+                            {id === 'calendar' && (
+                                <div>
+                                    <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-2">
+                                        {parseDate(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </label>
+                                    {!isToday && <button onClick={() => setSelectedDate(today)} className="w-full mb-3 py-2 px-3 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm">Today</button>}
+                                    <div className="grid grid-cols-7 gap-1">
+                                        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <div key={i} style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }} className="text-center text-xs font-semibold p-1">{d}</div>)}
+                                        {renderCalendar()}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            ))}
+        </>
+    );
+
+    if (compact) return <>{compactContent}</>;
+
     return (
         <div style={{
             backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
@@ -126,7 +215,7 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
                     <button
                         key={id}
                         onClick={() => setActiveTab(id as any)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition ${activeTab === id
+                        className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold transition ${(activeTab ?? 'email') === id
                             ? 'bg-blue-600 text-white'
                             : isDarkMode
                                 ? 'text-gray-300 hover:bg-gray-700'
@@ -140,7 +229,7 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
             </div>
 
             <div className="space-y-4">
-                {activeTab === 'email' && (
+                {(activeTab ?? 'email') === 'email' && (
                     <div>
                         <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-2">
                             Your Email
@@ -208,7 +297,7 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
                     </div>
                 )}
 
-                {activeTab === 'calendar' && (
+                {(activeTab ?? 'email') === 'calendar' && (
                     <div>
                         <label style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm font-semibold block mb-3">
                             Selected: {parseDate(selectedDate).toLocaleDateString('en-US', {
@@ -222,8 +311,8 @@ export const TopTools: FC<TopToolsProps> = ({ isDarkMode }) => {
                             <button
                                 onClick={() => setSelectedDate(today)}
                                 className={`w-full mb-4 py-2 px-3 rounded font-semibold text-sm transition ${isDarkMode
-                                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    : 'bg-blue-500 hover:bg-blue-600 text-white'
                                     }`}
                             >
                                 Today

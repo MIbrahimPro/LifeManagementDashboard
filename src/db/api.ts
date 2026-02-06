@@ -272,11 +272,20 @@ export async function addCardSection(
     categoryId: string,
     name: string,
     kind: CardSectionRecord['kind'] = 'custom',
-    removable = true
+    removable = true,
+    group?: 'diet' | 'exercise'
 ): Promise<CardSectionRecord> {
     const sections = await getCardSections(categoryId);
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    const rec: CardSectionRecord = { id, categoryId, name, order: sections.length, removable, kind };
+    let order = sections.length;
+    if (categoryId === 'physical' && group) {
+        const groupSections = sections.filter((s) => s.group === group);
+        order = groupSections.length ? Math.max(...groupSections.map((s) => s.order)) + 1 : 2;
+        for (const s of sections) {
+            if (s.order >= order) await db.cardSections.update(s.id, { order: s.order + 1 });
+        }
+    }
+    const rec: CardSectionRecord = { id, categoryId, name, order, removable, kind, ...(group && { group }) };
     await db.cardSections.add(rec);
     return rec;
 }
@@ -362,6 +371,205 @@ export async function getCategoryData(categoryId: string): Promise<Record<string
 
 export async function setCategoryData(categoryId: string, data: Record<string, unknown>): Promise<void> {
     await db.categoryData.put({ id: categoryId, data, updatedAt: Date.now() });
+}
+
+// ----- Family & Friends grid (name, birthdate, contact no) -----
+export interface FamilyFriendRecord {
+    id: string;
+    name: string;
+    birthdate: string; // YYYY-MM-DD
+    contactNo: string;
+}
+
+export async function getFamilyPeople(): Promise<FamilyFriendRecord[]> {
+    const data = await getCategoryData('family');
+    const people = (data.people as FamilyFriendRecord[] | undefined) ?? [];
+    return people;
+}
+
+export async function setFamilyPeople(people: FamilyFriendRecord[]): Promise<void> {
+    const data = await getCategoryData('family');
+    await setCategoryData('family', { ...data, people });
+}
+
+export async function addFamilyPerson(person: Omit<FamilyFriendRecord, 'id'>): Promise<FamilyFriendRecord> {
+    const people = await getFamilyPeople();
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const rec = { ...person, id };
+    await setFamilyPeople([...people, rec]);
+    return rec;
+}
+
+export async function updateFamilyPerson(id: string, updates: Partial<Omit<FamilyFriendRecord, 'id'>>): Promise<void> {
+    const people = await getFamilyPeople();
+    const idx = people.findIndex((p) => p.id === id);
+    if (idx >= 0) {
+        people[idx] = { ...people[idx], ...updates };
+        await setFamilyPeople(people);
+    }
+}
+
+export async function deleteFamilyPerson(id: string): Promise<void> {
+    const people = await getFamilyPeople().then((list) => list.filter((p) => p.id !== id));
+    await setFamilyPeople(people);
+}
+
+// ----- Assets & Liabilities (name + cost/profit per year, gross outcome) -----
+export interface AssetRecord {
+    id: string;
+    name: string;
+    profitPerYear: number;
+}
+
+export interface LiabilityRecord {
+    id: string;
+    name: string;
+    costPerYear: number;
+}
+
+export async function getAssets(): Promise<AssetRecord[]> {
+    const data = await getCategoryData('assets');
+    const assets = (data.assets as AssetRecord[] | undefined) ?? [];
+    return assets;
+}
+
+export async function getLiabilities(): Promise<LiabilityRecord[]> {
+    const data = await getCategoryData('assets');
+    const liabilities = (data.liabilities as LiabilityRecord[] | undefined) ?? [];
+    return liabilities;
+}
+
+export async function setAssets(assets: AssetRecord[]): Promise<void> {
+    const data = await getCategoryData('assets');
+    await setCategoryData('assets', { ...data, assets });
+}
+
+export async function setLiabilities(liabilities: LiabilityRecord[]): Promise<void> {
+    const data = await getCategoryData('assets');
+    await setCategoryData('assets', { ...data, liabilities });
+}
+
+export async function addAsset(asset: Omit<AssetRecord, 'id'>): Promise<AssetRecord> {
+    const assets = await getAssets();
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const rec = { ...asset, id };
+    await setAssets([...assets, rec]);
+    return rec;
+}
+
+export async function updateAsset(id: string, updates: Partial<Omit<AssetRecord, 'id'>>): Promise<void> {
+    const assets = await getAssets();
+    const idx = assets.findIndex((a) => a.id === id);
+    if (idx >= 0) {
+        assets[idx] = { ...assets[idx], ...updates };
+        await setAssets(assets);
+    }
+}
+
+export async function deleteAsset(id: string): Promise<void> {
+    const assets = await getAssets().then((list) => list.filter((a) => a.id !== id));
+    await setAssets(assets);
+}
+
+export async function addLiability(liability: Omit<LiabilityRecord, 'id'>): Promise<LiabilityRecord> {
+    const liabilities = await getLiabilities();
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const rec = { ...liability, id };
+    await setLiabilities([...liabilities, rec]);
+    return rec;
+}
+
+export async function updateLiability(id: string, updates: Partial<Omit<LiabilityRecord, 'id'>>): Promise<void> {
+    const liabilities = await getLiabilities();
+    const idx = liabilities.findIndex((l) => l.id === id);
+    if (idx >= 0) {
+        liabilities[idx] = { ...liabilities[idx], ...updates };
+        await setLiabilities(liabilities);
+    }
+}
+
+export async function deleteLiability(id: string): Promise<void> {
+    const liabilities = await getLiabilities().then((list) => list.filter((l) => l.id !== id));
+    await setLiabilities(liabilities);
+}
+
+// ----- Income & Expenses (name + amount per year, net outcome) -----
+export interface IncomeRecord {
+    id: string;
+    name: string;
+    amountPerYear: number;
+}
+
+export interface ExpenseRecord {
+    id: string;
+    name: string;
+    amountPerYear: number;
+}
+
+export async function getIncome(): Promise<IncomeRecord[]> {
+    const data = await getCategoryData('income');
+    const income = (data.income as IncomeRecord[] | undefined) ?? [];
+    return income;
+}
+
+export async function getExpenses(): Promise<ExpenseRecord[]> {
+    const data = await getCategoryData('income');
+    const expenses = (data.expenses as ExpenseRecord[] | undefined) ?? [];
+    return expenses;
+}
+
+export async function setIncome(income: IncomeRecord[]): Promise<void> {
+    const data = await getCategoryData('income');
+    await setCategoryData('income', { ...data, income });
+}
+
+export async function setExpenses(expenses: ExpenseRecord[]): Promise<void> {
+    const data = await getCategoryData('income');
+    await setCategoryData('income', { ...data, expenses });
+}
+
+export async function addIncomeRecord(record: Omit<IncomeRecord, 'id'>): Promise<IncomeRecord> {
+    const income = await getIncome();
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const rec = { ...record, id };
+    await setIncome([...income, rec]);
+    return rec;
+}
+
+export async function updateIncomeRecord(id: string, updates: Partial<Omit<IncomeRecord, 'id'>>): Promise<void> {
+    const income = await getIncome();
+    const idx = income.findIndex((i) => i.id === id);
+    if (idx >= 0) {
+        income[idx] = { ...income[idx], ...updates };
+        await setIncome(income);
+    }
+}
+
+export async function deleteIncomeRecord(id: string): Promise<void> {
+    const income = await getIncome().then((list) => list.filter((i) => i.id !== id));
+    await setIncome(income);
+}
+
+export async function addExpenseRecord(record: Omit<ExpenseRecord, 'id'>): Promise<ExpenseRecord> {
+    const expenses = await getExpenses();
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const rec = { ...record, id };
+    await setExpenses([...expenses, rec]);
+    return rec;
+}
+
+export async function updateExpenseRecord(id: string, updates: Partial<Omit<ExpenseRecord, 'id'>>): Promise<void> {
+    const expenses = await getExpenses();
+    const idx = expenses.findIndex((e) => e.id === id);
+    if (idx >= 0) {
+        expenses[idx] = { ...expenses[idx], ...updates };
+        await setExpenses(expenses);
+    }
+}
+
+export async function deleteExpenseRecord(id: string): Promise<void> {
+    const expenses = await getExpenses().then((list) => list.filter((e) => e.id !== id));
+    await setExpenses(expenses);
 }
 
 // ----- Text tool (TopTools quick text) -----

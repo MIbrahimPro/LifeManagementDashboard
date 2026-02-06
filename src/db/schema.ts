@@ -1,4 +1,4 @@
-import Dexie, { type Table } from 'dexie';
+import Dexie, { type Table, type Transaction } from 'dexie';
 
 // Types for DB entities (same shape we can send to Netlify/MongoDB later)
 export interface UserSettingsRecord {
@@ -81,6 +81,7 @@ export interface CardSectionRecord {
     order: number;
     removable: boolean;
     kind: 'custom' | 'goals' | 'contacts_websites';
+    group?: 'diet' | 'exercise'; // For physical category: Diet or Exercise heading
 }
 
 // Entries under a section (e.g. "Running" under Exercise) - structure, not reset
@@ -140,6 +141,8 @@ export interface TextToolRecord {
     updatedAt: number;
 }
 
+export const DB_VERSION = 4;
+
 export class AppDatabase extends Dexie {
     userSettings!: Table<UserSettingsRecord, string>;
     verses!: Table<VerseRecord, string>;
@@ -178,7 +181,98 @@ export class AppDatabase extends Dexie {
             dailyGoals: 'id, categoryId, date',
             contactsWebsites: 'id, categoryId, order',
         });
+        // v4: Migration for physical (Goals, To-Do List, Diet, Exercise), income/expenses, assets/liabilities
+        this.version(4).stores({
+            userSettings: 'id',
+            verses: 'id, [religion+categoryId], religion',
+            todos: 'id, date, [date+completed]',
+            actions: 'id, date',
+            journalEntries: 'id, date, timestamp, [date+category]',
+            dailySnapshots: 'id, date, categoryId',
+            trackerTemplates: 'id, categoryId, [categoryId+order]',
+            dailyTrackerLog: 'id, [date+templateId], date',
+            hobbyLinks: 'id, categoryId, order',
+            goals: 'id, date, categoryId, goalType',
+            categoryData: 'id',
+            textTool: 'id',
+            cardSections: 'id, categoryId, [categoryId+order]',
+            sectionEntries: 'id, sectionId, [sectionId+order]',
+            dailyGoals: 'id, categoryId, date',
+            contactsWebsites: 'id, categoryId, order',
+        }).upgrade(tx => migrateV3ToV4(tx));
     }
+}
+
+async function migrateV3ToV4(tx: Transaction): Promise<void> {
+    const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+    const physicalSections = await tx.table('cardSections').where('categoryId').equals('physical').sortBy('order');
+    const hasGoals = physicalSections.some((s: { kind: string }) => s.kind === 'goals');
+    const hasToDoList = physicalSections.some((s: { name: string }) => (s.name || '').toLowerCase().includes('to do') || (s.name || '').toLowerCase().includes('todo'));
+    const hasDietSections = physicalSections.some((s: { group?: string }) => s.group === 'diet');
+    const hasExerciseSections = physicalSections.some((s: { group?: string }) => s.group === 'exercise');
+    const hasContacts = physicalSections.some((s: { kind: string }) => s.kind === 'contacts_websites');
+
+    let nextOrder = physicalSections.length;
+    if (!hasGoals) {
+        await tx.table('cardSections').add({
+            id: generateId(), categoryId: 'physical', name: 'Goals', order: nextOrder++,
+            removable: false, kind: 'goals',
+        });
+    }
+    if (!hasToDoList) {
+        await tx.table('cardSections').add({
+            id: generateId(), categoryId: 'physical', name: 'To-Do List', order: nextOrder++,
+            removable: true, kind: 'custom',
+        });
+    }
+    if (!hasDietSections) {
+        for (const name of ['Meal planning', 'Vitamins', 'Pharmaceuticals']) {
+            await tx.table('cardSections').add({
+                id: generateId(), categoryId: 'physical', name, order: nextOrder++,
+                removable: true, kind: 'custom', group: 'diet',
+            });
+        }
+    }
+    if (!hasExerciseSections) {
+        for (const name of ['Walking', 'Running', 'Yoga', 'Weight lifting']) {
+            await tx.table('cardSections').add({
+                id: generateId(), categoryId: 'physical', name, order: nextOrder++,
+                removable: true, kind: 'custom', group: 'exercise',
+            });
+        }
+    }
+    if (!hasContacts) {
+        await tx.table('cardSections').add({
+            id: generateId(), categoryId: 'physical', name: 'Contacts / websites', order: nextOrder++,
+            removable: false, kind: 'contacts_websites',
+        });
+    }
+
+    const allPhysical = await tx.table('cardSections').where('categoryId').equals('physical').sortBy('order');
+    const goals = allPhysical.filter((s: { kind: string }) => s.kind === 'goals');
+    const toDo = allPhysical.filter((s: { name: string }) => (s.name || '').toLowerCase().includes('to do') || (s.name || '').toLowerCase().includes('todo'));
+    const diet = allPhysical.filter((s: { group?: string }) => s.group === 'diet');
+    const exercise = allPhysical.filter((s: { group?: string }) => s.group === 'exercise');
+    const contacts = allPhysical.filter((s: { kind: string }) => s.kind === 'contacts_websites');
+    const other = allPhysical.filter((s: { kind: string; group?: string; name?: string }) =>
+        s.kind !== 'goals' && s.kind !== 'contacts_websites' && !s.group &&
+        !((s.name || '').toLowerCase().includes('to do') || (s.name || '').toLowerCase().includes('todo')));
+    const ordered = [...goals, ...toDo, ...diet, ...exercise, ...contacts, ...other];
+    for (let i = 0; i < ordered.length; i++) {
+        await tx.table('cardSections').update((ordered[i] as { id: string }).id, { order: i });
+    }
+
+    // Income/Assets: remove old template sections, ensure minimal (Goals, Contacts, habits)
+    const incomeSections = await tx.table('cardSections').where('categoryId').equals('income').toArray() as { id: string; name: string; kind: string }[];
+    const incomeToRemove = incomeSections.filter((s) =>
+        s.kind === 'custom' && (s.name?.startsWith('Income -') || s.name?.startsWith('Expenses -') || s.name?.includes('Banking')));
+    for (const s of incomeToRemove) await tx.table('cardSections').delete(s.id);
+
+    const assetsSections = await tx.table('cardSections').where('categoryId').equals('assets').toArray() as { id: string; name: string; kind: string }[];
+    const assetsToRemove = assetsSections.filter((s) =>
+        s.kind === 'custom' && (s.name?.startsWith('Assets -') || s.name?.startsWith('Liabilities -') || s.name?.includes('Net Worth')));
+    for (const s of assetsToRemove) await tx.table('cardSections').delete(s.id);
 }
 
 export const db = new AppDatabase();

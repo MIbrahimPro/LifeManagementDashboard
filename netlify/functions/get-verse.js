@@ -1,6 +1,5 @@
-
-
-import Groq from "groq-sdk";
+// import Groq from "groq-sdk"; // Commented out: using OpenRouter instead
+import { OpenRouter } from "@openrouter/sdk";
 import { z } from "zod";
 
 const verseObjectSchema = z.object({ text: z.string(), reference: z.string() });
@@ -40,10 +39,17 @@ export const handler = async (event) => {
 
     try {
         const { religion } = JSON.parse(event.body);
-        const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+        // OpenRouter (active)
+        const openrouter = new OpenRouter({
+            apiKey: process.env.OPENROUTER_API_KEY
+        });
+
+        // GROQ (commented out - kept for reference)
+        // const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
         // logic for Atheism vs Religion
-        let systemPrompt = "You are a helpful assistant that outputs only valid JSON. Return ONLY the JSON object, no other text.";
+        let systemPrompt = "You are a helpful assistant that outputs only valid JSON. Return ONLY the JSON object, no other text. No markdown, no code fences.";
         let userPrompt = "";
 
         if (religion.toLowerCase() === 'atheism') {
@@ -85,17 +91,23 @@ Return ONLY valid JSON with this exact structure, no other text:
 }`;
         }
 
-        const chatCompletion = await groq.chat.completions.create({
+        // OpenRouter: non-streaming for formatted JSON response
+        const response = await openrouter.chat.send({
+            model: "stepfun/step-3.5-flash:free",
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt }
             ],
-            model: "llama-3.1-8b-instant",
-            response_format: { type: "json_object" }
+            response_format: { type: "json_object" } // SDK maps to response_format for API
         });
 
-        const rawJson = JSON.parse(chatCompletion.choices[0].message.content);
-        console.log("Raw JSON from Groq:", JSON.stringify(rawJson));
+        let content = response.choices?.[0]?.message?.content ?? "";
+        // Strip markdown code fence if present
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) content = jsonMatch[0];
+
+        const rawJson = JSON.parse(content);
+        console.log("Raw JSON from OpenRouter:", JSON.stringify(rawJson));
         const validatedData = categoriesSchema.parse(rawJson);
         const filledData = fillMissingCategories(validatedData);
 
@@ -105,10 +117,10 @@ Return ONLY valid JSON with this exact structure, no other text:
             body: JSON.stringify({ verses: filledData }),
         };
     } catch (error) {
-        console.error("GROQ Error:", error);
+        console.error("OpenRouter Error:", error);
         return {
             statusCode: 200,
-            headers: { "Content-Type": "application/json" }, // Always return JSON header
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ error: error.message })
         };
     }
