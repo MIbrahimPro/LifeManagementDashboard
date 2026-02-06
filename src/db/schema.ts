@@ -82,6 +82,7 @@ export interface CardSectionRecord {
     removable: boolean;
     kind: 'custom' | 'goals' | 'contacts_websites';
     group?: 'diet' | 'exercise'; // For physical category: Diet or Exercise heading
+    archivedAt?: number; // When set, section is archived (soft delete) - data preserved for history
 }
 
 // Entries under a section (e.g. "Running" under Exercise) - structure, not reset
@@ -141,7 +142,7 @@ export interface TextToolRecord {
     updatedAt: number;
 }
 
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 
 export class AppDatabase extends Dexie {
     userSettings!: Table<UserSettingsRecord, string>;
@@ -200,6 +201,25 @@ export class AppDatabase extends Dexie {
             dailyGoals: 'id, categoryId, date',
             contactsWebsites: 'id, categoryId, order',
         }).upgrade(tx => migrateV3ToV4(tx));
+        // v5: archivedAt for soft delete (preserve history)
+        this.version(5).stores({
+            userSettings: 'id',
+            verses: 'id, [religion+categoryId], religion',
+            todos: 'id, date, [date+completed]',
+            actions: 'id, date',
+            journalEntries: 'id, date, timestamp, [date+category]',
+            dailySnapshots: 'id, date, categoryId',
+            trackerTemplates: 'id, categoryId, [categoryId+order]',
+            dailyTrackerLog: 'id, [date+templateId], date',
+            hobbyLinks: 'id, categoryId, order',
+            goals: 'id, date, categoryId, goalType',
+            categoryData: 'id',
+            textTool: 'id',
+            cardSections: 'id, categoryId, [categoryId+order]',
+            sectionEntries: 'id, sectionId, [sectionId+order]',
+            dailyGoals: 'id, categoryId, date',
+            contactsWebsites: 'id, categoryId, order',
+        });
     }
 }
 

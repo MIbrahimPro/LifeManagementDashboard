@@ -46,26 +46,26 @@ export default function BiblicalLifeDashboard() {
     const [showCustomReligionForm, setShowCustomReligionForm] = useState(false);
     const [customReligionInput, setCustomReligionInput] = useState('');
 
-    // Initialize theme
+    // Initialize theme from settings (persisted) or system preference
     useEffect(() => {
-        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setIsDarkMode(isDark);
-        if (isDark) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+        let cancelled = false;
+        getUserSettings().then((s) => {
+            if (cancelled) return;
+            const dark = s?.isDarkMode ?? window.matchMedia('(prefers-color-scheme: dark)').matches;
+            setIsDarkMode(dark);
+            if (dark) document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        });
+        return () => { cancelled = true; };
     }, []);
 
-    // Toggle theme
+    // Toggle theme and persist
     const toggleTheme = () => {
         const newIsDarkMode = !isDarkMode;
         setIsDarkMode(newIsDarkMode);
-        if (newIsDarkMode) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+        setUserSettings({ isDarkMode: newIsDarkMode });
+        if (newIsDarkMode) document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
     };
 
     // Seed db if empty, load religion and verses on mount

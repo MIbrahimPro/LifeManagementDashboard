@@ -1,6 +1,6 @@
 import { useState, useEffect, type FC } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Plus, Pencil, Trash2, ExternalLink, Phone, Check } from 'lucide-react';
+import { Plus, Pencil, Trash2, ExternalLink, Phone, Check, ArchiveRestore } from 'lucide-react';
 import { FamilyFriendsGrid } from './FamilyFriendsGrid';
 import { IncomeExpensesView } from './IncomeExpensesView';
 import { AssetsLiabilitiesView } from './AssetsLiabilitiesView';
@@ -9,6 +9,7 @@ import {
     addCardSection,
     updateCardSection,
     deleteCardSection,
+    restoreCardSection,
     addSectionEntry,
     deleteSectionEntry,
     setDailyGoals,
@@ -38,7 +39,12 @@ export const CardChecklist: FC<CardChecklistProps> = ({ categoryId, isDarkMode }
     const [addEntryOptions, setAddEntryOptions] = useState('');
     const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
     const [editingSectionName, setEditingSectionName] = useState('');
+    const [showArchived, setShowArchived] = useState(false);
     const date = today();
+
+    const allSections = sections ?? [];
+    const activeSections = allSections.filter((s) => !s.archivedAt);
+    const archivedSections = allSections.filter((s) => !!s.archivedAt);
 
     const handleAddSection = async () => {
         if (!addSectionName.trim()) return;
@@ -83,8 +89,8 @@ export const CardChecklist: FC<CardChecklistProps> = ({ categoryId, isDarkMode }
         color: isDarkMode ? '#f3f4f6' : '#111827',
     };
 
-    // For physical category: Goals first, then Diet, Exercise, other
-    const physicalSections = categoryId === 'physical' && (sections || []);
+    // For physical category: Goals first, then Diet, Exercise, other (exclude archived)
+    const physicalSections = categoryId === 'physical' && activeSections;
     const dietSections = physicalSections ? physicalSections.filter((s: { group?: string }) => s.group === 'diet') : [];
     const exerciseSections = physicalSections ? physicalSections.filter((s: { group?: string }) => s.group === 'exercise') : [];
     const otherSectionsRaw = physicalSections ? physicalSections.filter((s: { group?: string }) => !s.group) : [];
@@ -262,7 +268,7 @@ export const CardChecklist: FC<CardChecklistProps> = ({ categoryId, isDarkMode }
                     ))}
                 </>
             )}
-            {categoryId !== 'physical' && (sections || []).map((section) => (
+            {categoryId !== 'physical' && activeSections.map((section) => (
                 <SectionBlock
                     key={section.id}
                     section={section}
@@ -304,6 +310,39 @@ export const CardChecklist: FC<CardChecklistProps> = ({ categoryId, isDarkMode }
                     >
                         <Plus size={14} /> Add category
                     </button>
+                </div>
+            )}
+
+            {/* Archived categories - data preserved, can restore */}
+            {archivedSections.length > 0 && (
+                <div style={{ borderColor: isDarkMode ? '#4b5563' : '#e5e7eb' }} className="border rounded-lg p-3">
+                    <button
+                        onClick={() => setShowArchived(!showArchived)}
+                        className="flex items-center gap-2 w-full text-left font-semibold text-sm"
+                        style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }}
+                    >
+                        <ArchiveRestore size={16} />
+                        Archived ({archivedSections.length}) – History preserved
+                    </button>
+                    {showArchived && (
+                        <div className="mt-2 space-y-1">
+                            {archivedSections.map((section) => (
+                                <div
+                                    key={section.id}
+                                    className="flex items-center justify-between gap-2 py-1.5 px-2 rounded"
+                                    style={{ backgroundColor: isDarkMode ? '#1f2937' : '#f3f4f6' }}
+                                >
+                                    <span style={{ color: isDarkMode ? '#d1d5db' : '#374151' }} className="text-sm truncate">{section.name}</span>
+                                    <button
+                                        onClick={() => restoreCardSection(section.id)}
+                                        className="shrink-0 flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium"
+                                    >
+                                        <ArchiveRestore size={12} /> Restore
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

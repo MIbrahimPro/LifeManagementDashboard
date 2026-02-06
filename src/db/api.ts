@@ -265,7 +265,17 @@ export async function deleteGoal(id: string): Promise<void> {
 
 // ----- Card sections (Goals, Vitamins, etc.) -----
 export async function getCardSections(categoryId: string): Promise<CardSectionRecord[]> {
-    return db.cardSections.where('categoryId').equals(categoryId).sortBy('order');
+    const sections = await db.cardSections.where('categoryId').equals(categoryId).sortBy('order');
+    return sections.filter((s) => !s.archivedAt);
+}
+
+export async function getArchivedSections(categoryId: string): Promise<CardSectionRecord[]> {
+    const sections = await db.cardSections.where('categoryId').equals(categoryId).sortBy('order');
+    return sections.filter((s) => !!s.archivedAt).sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+}
+
+export async function restoreCardSection(id: string): Promise<void> {
+    await db.cardSections.update(id, { archivedAt: undefined });
 }
 
 export async function addCardSection(
@@ -295,9 +305,8 @@ export async function updateCardSection(id: string, updates: Partial<CardSection
 }
 
 export async function deleteCardSection(id: string): Promise<void> {
-    const entries = await db.sectionEntries.where('sectionId').equals(id).toArray();
-    for (const e of entries) await db.sectionEntries.delete(e.id);
-    await db.cardSections.delete(id);
+    // Soft delete (archive) - preserves section + entries for history; user can restore from Journal
+    await db.cardSections.update(id, { archivedAt: Date.now() });
 }
 
 // ----- Section entries (e.g. Running under Exercise) -----
