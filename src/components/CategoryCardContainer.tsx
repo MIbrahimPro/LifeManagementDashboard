@@ -17,6 +17,8 @@ interface CategoryCardContainerProps {
     cycleVerse: (categoryId: string) => void;
     isDarkMode: boolean;
     versesRefreshKey: number;
+    expandedCategoryId: string | null;
+    onToggleCategory: (id: string) => void;
 }
 
 const categories: Category[] = [
@@ -35,22 +37,38 @@ export const CategoryCardContainer: FC<CategoryCardContainerProps> = ({
     verseIndices,
     cycleVerse,
     isDarkMode,
-    versesRefreshKey
+    versesRefreshKey,
+    expandedCategoryId,
+    onToggleCategory
 }) => {
     return (
-        <>
-            {categories.map(category => (
-                <div key={category.id}>
+        <div className="flex gap-3 items-start">
+            {[0, 1, 2, 3].map(colIndex => (
+                <div key={colIndex} className="flex-1 flex flex-col gap-3 min-w-0">
                     <CategoryCard
-                        category={category}
+                        key={categories[colIndex].id}
+                        category={categories[colIndex]}
                         religion={religion}
-                        verseIndex={verseIndices[category.id] || 0}
+                        verseIndex={verseIndices[categories[colIndex].id] || 0}
                         cycleVerse={cycleVerse}
                         isDarkMode={isDarkMode}
                         versesRefreshKey={versesRefreshKey}
+                        isExpanded={expandedCategoryId === categories[colIndex].id}
+                        onHeaderClick={() => onToggleCategory(categories[colIndex].id)}
+                    />
+                    <CategoryCard
+                        key={categories[colIndex + 4].id}
+                        category={categories[colIndex + 4]}
+                        religion={religion}
+                        verseIndex={verseIndices[categories[colIndex + 4].id] || 0}
+                        cycleVerse={cycleVerse}
+                        isDarkMode={isDarkMode}
+                        versesRefreshKey={versesRefreshKey}
+                        isExpanded={expandedCategoryId === categories[colIndex + 4].id}
+                        onHeaderClick={() => onToggleCategory(categories[colIndex + 4].id)}
                     />
                 </div>
             ))}
-        </>
+        </div>
     );
 };

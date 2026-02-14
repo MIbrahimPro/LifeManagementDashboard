@@ -45,6 +45,11 @@ export default function BiblicalLifeDashboard() {
     const [addToDropdownOpen, setAddToDropdownOpen] = useState(false);
     const [showCustomReligionForm, setShowCustomReligionForm] = useState(false);
     const [customReligionInput, setCustomReligionInput] = useState('');
+    const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
+
+    const handleToggleCategory = useCallback((id: string) => {
+        setExpandedCategoryId((prev) => (prev === id ? null : id));
+    }, []);
 
     // Initialize theme from settings (persisted) or system preference
     useEffect(() => {
@@ -174,7 +179,7 @@ export default function BiblicalLifeDashboard() {
     }, [customReligionInput]);
 
     return (
-        <div className={`min-h-screen ${isDarkMode ? 'dark' : ''}`} style={{
+        <div className={`h-screen flex flex-col overflow-hidden ${isDarkMode ? 'dark' : ''}`} style={{
             backgroundColor: isDarkMode ? '#111827' : '#ffffff',
             color: isDarkMode ? '#f3f4f6' : '#111827'
         }}>
@@ -190,10 +195,10 @@ export default function BiblicalLifeDashboard() {
                 </div>
             )}
 
-            <div className="max-w-[160rem] mx-auto px-4 sm:px-6 lg:px-8 py-8" style={{ zoom: 0.75 }}>
-                {/* Header */}
-                <header className="mb-10">
-                    <div className="flex justify-between items-start mb-6">
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden max-w-[160rem] mx-auto w-full px-4 sm:px-6 lg:px-8 py-4" style={{ zoom: 0.65 }}>
+                {/* Top section - shrink-0 */}
+                <header className="shrink-0 mb-4">
+                    <div className="flex justify-between items-start mb-2">
                         <div className="text-center flex-1">
                             <h1 style={{ color: isDarkMode ? '#ffffff' : '#111827' }} className="text-4xl font-bold tracking-tight mb-2">
                                 Faithful Life Dashboard
@@ -223,7 +228,7 @@ export default function BiblicalLifeDashboard() {
                 <div style={{
                     backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
                     borderColor: isDarkMode ? '#374151' : '#e5e7eb'
-                }} className="rounded-2xl shadow-sm border p-5 mb-4">
+                }} className="shrink-0 rounded-2xl shadow-sm border p-4 mb-3">
                     <div className="flex gap-2">
                         <input
                             type="text"
@@ -294,7 +299,7 @@ export default function BiblicalLifeDashboard() {
                 <div style={{
                     backgroundColor: isDarkMode ? '#1f2937' : '#ffffff',
                     borderColor: isDarkMode ? '#374151' : '#e5e7eb'
-                }} className="rounded-2xl shadow-sm border p-5 mb-8">
+                }} className="shrink-0 rounded-2xl shadow-sm border p-4 mb-4">
                     <div className="flex flex-wrap gap-2">
                         <TopTools isDarkMode={isDarkMode} compact />
                         <button
@@ -330,14 +335,16 @@ export default function BiblicalLifeDashboard() {
                     </div>
                 </div>
 
-                {/* Category Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
+                {/* Category Accordions - flex-1 takes remaining space */}
+                <div className="flex-1 min-h-0 overflow-y-auto">
                     <CategoryCardContainer
                         religion={religion}
                         verseIndices={verseIndices}
                         cycleVerse={cycleVerse}
                         isDarkMode={isDarkMode}
                         versesRefreshKey={versesRefreshKey}
+                        expandedCategoryId={expandedCategoryId}
+                        onToggleCategory={handleToggleCategory}
                     />
                 </div>
 
@@ -372,7 +379,7 @@ export default function BiblicalLifeDashboard() {
                 />
 
                 {/* Footer */}
-                <footer style={{ borderTopColor: isDarkMode ? '#374151' : '#e5e7eb' }} className="mt-12 pt-8 border-t">
+                <footer style={{ borderTopColor: isDarkMode ? '#374151' : '#e5e7eb' }} className="shrink-0 mt-4 pt-4 border-t">
                     <div className="flex flex-col items-center gap-6">
                         {!showCustomReligionForm ? (
                             <>
